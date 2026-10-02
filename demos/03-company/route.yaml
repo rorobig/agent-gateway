@@ -7,15 +7,22 @@ metadata:
   name: company
 spec:
   parentRefs:
-    - name: agentgateway-proxy
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: agentgateway-proxy
       namespace: agentgateway-system
   hostnames:
     - api.localhost
   rules:
-    - backendRefs:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
         - group: agentgateway.dev
           kind: AgentgatewayBackend
           name: company
+          weight: 1
 ---
 # Who may call, and how many tokens they may burn. One traffic policy per route (a second one would silently win).
 apiVersion: agentgateway.dev/v1alpha1

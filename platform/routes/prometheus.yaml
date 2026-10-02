@@ -5,11 +5,20 @@ metadata:
   namespace: monitoring
 spec:
   parentRefs:
-    - name: agentgateway-proxy
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: agentgateway-proxy
       namespace: agentgateway-system
   hostnames:
     - prometheus.localhost
   rules:
-    - backendRefs:
-        - name: prometheus-server
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: prometheus-server
           port: 80
+          weight: 1

@@ -5,11 +5,20 @@ metadata:
   namespace: argocd
 spec:
   parentRefs:
-    - name: agentgateway-proxy
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: agentgateway-proxy
       namespace: agentgateway-system
   hostnames:
     - argocd.localhost
   rules:
-    - backendRefs:
-        - name: argocd-server
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: argocd-server
           port: 80
+          weight: 1

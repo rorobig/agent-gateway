@@ -48,6 +48,7 @@ spec:
               action: Reject
               failureMode: FailOpen      # guard down? let traffic through (demo choice; prod: FailClosed)
               backendRef:
+                group: ""
                 kind: Service
                 name: llama-guard
                 port: 8000
