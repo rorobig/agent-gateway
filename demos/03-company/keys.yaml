@@ -1,0 +1,11 @@
+# Demo 3: "virtual keys". Each caller gets their own API key; the gateway knows who is calling.
+# The metadata is available in every policy as CEL: apiKey.user_id, apiKey.tier.
+# (Demo keys in plain text on purpose. In real life: hashed keys, or JWTs from your IdP.)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-keys
+stringData:
+  alice: '{"key": "sk-alice", "metadata": {"user_id": "alice", "tier": "pro"}}'
+  bob: '{"key": "sk-bob", "metadata": {"user_id": "bob", "tier": "pro"}}'
+  intern: '{"key": "sk-intern", "metadata": {"user_id": "intern", "tier": "free"}}'

@@ -1,0 +1,9 @@
+# The guard's code lives in guard.py; kustomize puts it in a ConfigMap so no image build is needed.
+# The hash suffix restarts the pod whenever guard.py changes.
+namespace: ai
+resources:
+  - deployment.yaml
+configMapGenerator:
+  - name: llama-guard
+    files:
+      - guard.py

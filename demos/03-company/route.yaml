@@ -1,0 +1,47 @@
+# Demo 3: the company AI endpoint.  http://api.localhost   (needs: Authorization: Bearer sk-<user>)
+#
+# Request path:  API key? -> token budget left? -> pick model by tier -> guards -> Ollama -> guards -> caller
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: company
+spec:
+  parentRefs:
+    - name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - api.localhost
+  rules:
+    - backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: company
+---
+# Who may call, and how many tokens they may burn. One traffic policy per route (a second one would silently win).
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: company-access
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      name: company
+  traffic:
+    apiKeyAuthentication:
+      mode: Strict                 # no key / wrong key -> 401, the model is never called
+      secretRef:
+        name: api-keys
+    rateLimit:
+      # Budgets are counted in TOKENS, not requests: one long answer costs more than ten short ones.
+      # The first matching condition wins; the last entry (no condition) is everyone else.
+      conditional:
+        - condition: 'apiKey.tier == "free"'
+          policy:
+            local:
+              - tokens: 400
+                unit: Minutes
+        - policy:
+            local:
+              - tokens: 20000
+                unit: Minutes

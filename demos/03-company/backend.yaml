@@ -1,0 +1,58 @@
+# What the gateway does to the AI traffic itself, for the company endpoint.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: company
+spec:
+  ai:
+    provider:
+      openai: {}
+      host: host.k3d.internal
+      port: 11434
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: company-ai
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: company
+  backend:
+    ai:
+      # Tier-based model routing: whatever model the caller asks for, pro users get the 7B model and
+      # free users get the 1.5B one. Look at "model" in the response.
+      transformations:
+        - field: model
+          expression: 'apiKey.tier == "pro" ? "qwen2.5:7b" : "qwen2.5:1.5b"'
+      promptGuard:
+        # Checked BEFORE the model sees the prompt, in this order. Reject = the model is never called.
+        request:
+          - regex:
+              action: Reject
+              builtins: [CreditCard]
+            response:
+              statusCode: 403
+              message: "Blocked by agentgateway: no credit card numbers in prompts."
+          - regex:
+              action: Reject
+              matches:
+                - '(?i)ignore (all )?(the )?(previous|prior|above) instructions'
+                - '(?i)you are now (DAN|in developer mode)'
+            response:
+              statusCode: 403
+              message: "Blocked by agentgateway: that looks like a prompt injection."
+          # An LLM guarding an LLM: Llama Guard (demos/guard) classifies the prompt as safe/unsafe.
+          - webhook:
+              action: Reject
+              failureMode: FailOpen      # guard down? let traffic through (demo choice; prod: FailClosed)
+              backendRef:
+                kind: Service
+                name: llama-guard
+                port: 8000
+        # Checked AFTER the model answered, before the caller sees it.
+        response:
+          - regex:
+              action: Mask
+              builtins: [Email, PhoneNumber]

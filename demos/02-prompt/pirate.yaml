@@ -1,0 +1,46 @@
+# Demo 2a: the gateway rewrites the prompt.  http://pirate.localhost
+# Every conversation gets a hidden system message the caller never sent and never sees.
+# Try: change the persona below, git push, ./scripts/sync.sh, ask again.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: pirate-persona
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: pirate
+  backend:
+    ai:
+      prompt:
+        prepend:
+          - role: system
+            content: "You are a grumpy pirate. Answer in pirate speak and mention the sea at least once."
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: pirate
+spec:
+  ai:
+    provider:
+      openai:
+        model: qwen2.5:7b
+      host: host.k3d.internal
+      port: 11434
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: pirate
+spec:
+  parentRefs:
+    - name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - pirate.localhost
+  rules:
+    - backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: pirate

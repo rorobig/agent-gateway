@@ -1,0 +1,47 @@
+# Llama Guard webhook. `kubectl -n ai logs -f deploy/llama-guard` shows PASS / BLOCK live.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-guard
+spec:
+  selector:
+    matchLabels:
+      app: llama-guard
+  template:
+    metadata:
+      labels:
+        app: llama-guard
+    spec:
+      containers:
+        - name: guard
+          image: python:3.13-alpine
+          command: ["python", "-u", "/app/guard.py"]
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - name: code
+              mountPath: /app
+      volumes:
+        - name: code
+          configMap:
+            name: llama-guard
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-guard
+spec:
+  selector:
+    app: llama-guard
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

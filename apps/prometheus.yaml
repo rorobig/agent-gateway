@@ -1,0 +1,61 @@
+# Just the Prometheus server: no operator, Alertmanager, node-exporter or kube-state-metrics (~200 MB instead of ~1.5 GB).
+# It scrapes one thing: the agentgateway proxy pods, every 5 s so the dashboard reacts while you talk.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: prometheus
+    targetRevision: 29.35.0
+    helm:
+      valuesObject:
+        alertmanager: { enabled: false }
+        kube-state-metrics: { enabled: false }
+        prometheus-node-exporter: { enabled: false }
+        prometheus-pushgateway: { enabled: false }
+        configmapReload: { prometheus: { enabled: false } }
+        server:
+          retention: 2d
+          persistentVolume: { enabled: false }
+          global: { scrape_interval: 5s, scrape_timeout: 4s, evaluation_interval: 5s }
+        scrapeConfigs:
+          # The chart's default jobs scrape the whole cluster (and the proxy a second time, via its
+          # prometheus.io/scrape annotation, which would double every number). Off.
+          prometheus: { enabled: false }
+          kubernetes-api-servers: { enabled: false }
+          kubernetes-nodes: { enabled: false }
+          kubernetes-nodes-cadvisor: { enabled: false }
+          kubernetes-service-endpoints: { enabled: false }
+          kubernetes-service-endpoints-slow: { enabled: false }
+          prometheus-pushgateway: { enabled: false }
+          kubernetes-services: { enabled: false }
+          kubernetes-pods: { enabled: false }
+          kubernetes-pods-slow: { enabled: false }
+          agentgateway:
+            kubernetes_sd_configs: [{ role: pod }]
+            relabel_configs:
+              # keep only proxy pods (label set by the agentgateway controller) on their "metrics" port
+              - source_labels: [__meta_kubernetes_pod_label_gateway_networking_k8s_io_gateway_class_name]
+                regex: agentgateway
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_container_port_name]
+                regex: metrics
+                action: keep
+              - source_labels: [__meta_kubernetes_pod_name]
+                target_label: pod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

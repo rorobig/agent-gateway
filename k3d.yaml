@@ -1,0 +1,17 @@
+# One-node k3s cluster in Docker. `scripts/up.sh` creates it from this file.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: talk
+servers: 1
+agents: 0
+ports:
+  # http://*.localhost on the Mac -> the k3s load balancer -> the agentgateway proxy (port 80).
+  - port: 80:80
+    nodeFilters: [loadbalancer]
+options:
+  k3s:
+    extraArgs:
+      # agentgateway is our only ingress; k3s's Traefik would fight it for port 80.
+      - arg: --disable=traefik
+        nodeFilters: [server:*]

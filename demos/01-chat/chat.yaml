@@ -1,0 +1,46 @@
+# Demo 1: an AI behind the gateway.  http://llm.localhost/v1/chat/completions
+#
+# Ollama runs natively on the Mac (Apple GPU). The cluster reaches it at host.k3d.internal.
+# The gateway speaks the OpenAI API to clients and to Ollama, and counts every token in between.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: ollama
+spec:
+  ai:
+    provider:
+      openai: {}                 # no model pinned: the client's "model" is passed through (after aliases)
+      host: host.k3d.internal
+      port: 11434
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: ollama-aliases
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: ollama
+  backend:
+    ai:
+      # Clients ask for a role, the platform team decides which model that is today.
+      modelAliases:
+        fast: qwen2.5:1.5b
+        smart: qwen2.5:7b
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: llm
+spec:
+  parentRefs:
+    - name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - llm.localhost
+  rules:
+    - backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: ollama

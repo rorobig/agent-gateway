@@ -1,0 +1,16 @@
+# Argo CD, installed once by scripts/up.sh (helm). After that, Argo deploys everything else from this repo.
+# Laptop-only demo cluster: no login anywhere, so nothing to type on stage.
+configs:
+  params:
+    server.insecure: true          # plain HTTP behind agentgateway (http://argocd.localhost)
+  cm:
+    users.anonymous.enabled: "true"
+    timeout.reconciliation: 30s    # poll git every 30 s (default 3 min); scripts/sync.sh forces it instantly
+  rbac:
+    policy.default: role:admin
+dex:
+  enabled: false
+notifications:
+  enabled: false
+applicationSet:
+  replicas: 1

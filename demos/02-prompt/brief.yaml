@@ -1,0 +1,51 @@
+# Demo 2b: cost control at the gateway.  http://brief.localhost
+# Same model as llm.localhost, but the gateway appends "be brief" and caps max_tokens.
+# Ask both the same question and compare "usage" (and the token panel in Grafana).
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: brief
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: brief
+  backend:
+    ai:
+      prompt:
+        append:
+          - role: system
+            content: "Answer in at most two short sentences. No lists, no markdown."
+      overrides:                 # overwrite whatever the client sent
+        - field: max_tokens
+          value: 120
+        - field: temperature
+          value: 0.2
+---
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayBackend
+metadata:
+  name: brief
+spec:
+  ai:
+    provider:
+      openai:
+        model: qwen2.5:7b
+      host: host.k3d.internal
+      port: 11434
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: brief
+spec:
+  parentRefs:
+    - name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - brief.localhost
+  rules:
+    - backendRefs:
+        - group: agentgateway.dev
+          kind: AgentgatewayBackend
+          name: brief

@@ -1,0 +1,51 @@
+# Grafana with no login (anonymous admin, laptop only). Dashboards come from ConfigMaps labelled
+# grafana_dashboard=1 (platform/dashboards/), picked up by the sidecar without a restart.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: grafana
+    targetRevision: 10.5.15
+    helm:
+      valuesObject:
+        adminPassword: admin            # fixed, so the chart does not generate a new one (and restart Grafana) on every sync
+        persistence: { enabled: false }
+        testFramework: { enabled: false }
+        grafana.ini:
+          server: { root_url: http://grafana.localhost }
+          auth: { disable_login_form: true }
+          auth.anonymous: { enabled: true, org_role: Admin }
+          dashboards: { default_home_dashboard_path: /tmp/dashboards/agentgateway-talk.json }
+        datasources:
+          datasources.yaml:
+            apiVersion: 1
+            datasources:
+              - name: Prometheus
+                uid: prometheus
+                type: prometheus
+                url: http://prometheus-server.monitoring.svc
+                isDefault: true
+                jsonData: { timeInterval: 5s }
+        sidecar:
+          dashboards:
+            enabled: true
+            label: grafana_dashboard
+            labelValue: "1"
+            folder: /tmp/dashboards
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
