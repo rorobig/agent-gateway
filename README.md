@@ -1,6 +1,6 @@
 # agent-gateway
 
-Demo infrastructure for a talk on **agentgateway** (and later, how it compares with LiteLLM).
+Demo infrastructure for a talk on **agentgateway**: LLM traffic, agents (kagent, A2A, MCP), and how it compares with LiteLLM.
 Everything runs on one MacBook: a local Kubernetes cluster (k3d), deployed by Argo CD from this repo, with
 AI models served by Ollama natively on the Mac (Apple GPU).
 
@@ -29,6 +29,8 @@ Needs: Docker (12 GB+ memory), k3d, helm, kubectl, jq, and the [Ollama app](http
 | http://llm.localhost | demo 1: an AI behind the gateway |
 | http://pirate.localhost, http://brief.localhost | demo 2: prompt rewrites |
 | http://api.localhost | demo 3: the company endpoint (API key needed) |
+| http://kagent.localhost, http://agents.localhost | demo 4: agents (kagent UI, A2A endpoints) |
+| http://litellm.localhost | demo 5: LiteLLM, for comparison |
 
 All of them are OpenAI-compatible: `POST /v1/chat/completions`. Any OpenAI SDK or chat UI works with
 `base_url=http://api.localhost/v1` and `api_key=sk-alice`.
@@ -82,6 +84,31 @@ What's going on, in request order:
 contract (`POST /request` -> pass / reject). It runs `llama-guard3:1b` in the same Ollama. Watch it decide:
 `./scripts/demo.sh guardlog`.
 
+### 4. Agents (`demos/04-agents`, kagent)
+```bash
+./scripts/demo.sh agents         # each agent's A2A agent card: name, description, skills
+./scripts/demo.sh agent          # tour-guide -> cluster-reader -> Kubernetes tools, every step printed
+./scripts/demo.sh reader "Are there any pods that are not running?"
+```
+```
+you ──A2A──▶ agents.localhost ─▶ tour-guide ──A2A──▶ cluster-reader ──MCP──▶ read-only k8s tools
+                                     │                     │
+                                     └──── LLM calls ──────┴──▶ api.ai.svc.cluster.local (= api.localhost)
+```
+Two agents, both just `Agent` resources. `tour-guide` has no tools; its only "tool" is the other agent,
+called over **A2A** (agent-to-agent protocol). `cluster-reader` uses kagent's Kubernetes tools over **MCP**.
+Both make their LLM calls through the company endpoint with key `sk-kagent`: the agents are just another
+user, with a token budget, the guards, and their own `kagent` line on the dashboard. Chat with them in the
+UI at http://kagent.localhost.
+
+### 5. LiteLLM, for comparison (`demos/05-litellm`)
+```bash
+./scripts/demo.sh litellm        # the same question via agentgateway and via LiteLLM
+```
+LiteLLM does demo 1's job (`fast`/`smart` aliases in front of the same Ollama) from its own `config.yaml`.
+Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:7b`), LiteLLM the alias
+(`smart`). agentgateway only routes to LiteLLM here; it doesn't see tokens on this route.
+
 ## Changing things live
 
 Everything is GitOps: edit, commit, push, then `./scripts/sync.sh` (Argo otherwise polls every 30 s).
@@ -108,6 +135,14 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 ## Gotchas found while building this
 
+- **`kubectl apply` doesn't stick.** Argo CD self-heals every app back to git within seconds. Commit and push.
+- **Pods can't use `*.localhost`** (that's their own loopback). In-cluster callers use
+  `api.ai.svc.cluster.local`: an ExternalName Service to the proxy plus a second hostname on the route.
+- **qwen2.5:7b and A2A tool calls:** it sent `tour-guide`'s `request` argument as an object 9 times in 10.
+  An example string in the system prompt made it 10 out of 10 (and 1.5 s per call). `qwen3.5:9b` gets it
+  right without the hint but takes ~40 s per call while thinking (~3 s with `reasoning_effort: none`).
+- **kagent agent cards are at `.well-known/agent-card.json`** (A2A 0.3/1.0), not `agent.json`.
+
 - **Ollama in Docker on a Mac is CPU-only.** So Ollama runs natively and the cluster reaches it at
   `host.k3d.internal`.
 - **Only one AgentgatewayPolicy per section per target.** Two `traffic` policies on the same route: one silently
@@ -120,6 +155,6 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 ## Next
 
-- kagent: an agent whose LLM *and* tools (MCP) go through this gateway
-- LiteLLM next to it, in front of the same Ollama, for the comparison
+- kagent's MCP tool calls through the gateway too (today only its LLM calls are)
+- the A2A route as an A2A-aware agentgateway backend (today: plain HTTP routing)
 - a chat UI (Open WebUI) pointed at `api.localhost`
