@@ -9,3 +9,4 @@ stringData:
   alice: '{"key": "sk-alice", "metadata": {"user_id": "alice", "tier": "pro"}}'
   bob: '{"key": "sk-bob", "metadata": {"user_id": "bob", "tier": "pro"}}'
   intern: '{"key": "sk-intern", "metadata": {"user_id": "intern", "tier": "free"}}'
+  kagent: '{"key": "sk-kagent", "metadata": {"user_id": "kagent", "tier": "pro"}}'   # the agents (demo 4)

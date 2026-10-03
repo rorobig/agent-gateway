@@ -13,6 +13,7 @@ spec:
       namespace: agentgateway-system
   hostnames:
     - api.localhost
+    - api.ai.svc.cluster.local     # the same endpoint from inside the cluster (kagent uses it)
   rules:
     - matches:
         - path:
@@ -52,3 +53,13 @@ spec:
             local:
               - tokens: 20000
                 unit: Minutes
+---
+# In-cluster DNS name for this endpoint: api.ai.svc.cluster.local -> the gateway proxy.
+# Pods can't use api.localhost (that's their own loopback), so they use this name instead.
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  type: ExternalName
+  externalName: agentgateway-proxy.agentgateway-system.svc.cluster.local

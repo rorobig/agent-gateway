@@ -73,6 +73,9 @@ case "${1:-}" in
                -d "$(jq -nc --arg p "$p" '{model:"any", messages:[{role:"user", content:$p}]}')")
              echo "$u  $code  $p"
            done ;;
+  litellm) title "Same question, same Ollama: agentgateway (llm.localhost) vs LiteLLM (litellm.localhost)"
+           ask llm.localhost "${2:-$Q_DEFAULT}" smart
+           ask litellm.localhost "${2:-$Q_DEFAULT}" smart ;;
   logs)    title "Gateway access log (one line per request: user, model, tokens, guard decisions)"
            kubectl -n agentgateway-system logs -f -l gateway.networking.k8s.io/gateway-name=agentgateway-proxy --tail=5 ;;
   guardlog) title "Llama Guard decisions"

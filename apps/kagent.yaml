@@ -1,0 +1,49 @@
+# kagent: AI agents as Kubernetes resources. Its LLM calls go through agentgateway like any other user:
+# API key sk-kagent, tier pro, its own token budget, guards, and its own line on the dashboard.
+# All bundled agents are off; ours are in demos/04-agents.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kagent
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/kagent-dev/kagent/helm
+    chart: kagent
+    targetRevision: 0.10.3
+    helm:
+      valuesObject:
+        providers:
+          default: openAI
+          openAI:
+            provider: OpenAI
+            model: smart                     # ignored: the gateway picks the model from the key's tier
+            apiKeySecretRef: kagent-openai
+            apiKeySecretKey: OPENAI_API_KEY
+            apiKey: sk-kagent                # demo key, see demos/03-company/keys.yaml
+            config:
+              baseUrl: http://api.ai.svc.cluster.local/v1   # api.localhost, as seen from inside the cluster
+        k8s-agent: { enabled: false }
+        kgateway-agent: { enabled: false }
+        istio-agent: { enabled: false }
+        promql-agent: { enabled: false }
+        observability-agent: { enabled: false }
+        argo-rollouts-agent: { enabled: false }
+        helm-agent: { enabled: false }
+        cilium-policy-agent: { enabled: false }
+        cilium-manager-agent: { enabled: false }
+        cilium-debug-agent: { enabled: false }
+        grafana-mcp: { enabled: false }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

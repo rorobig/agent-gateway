@@ -34,7 +34,7 @@ stat("Over token budget (429)", f'increase(agentgateway_requests_total{{route=~"
 stat("No / bad API key (401)", f'increase(agentgateway_requests_total{{route=~"ai/.*",status="401"}}{R})', 16, "Rejected before anything else happened.")
 stat("Masked responses", f'increase(agentgateway_guardrail_checks_total{{action="Mask"}}{R})', 20, "Answers where the gateway masked emails/phone numbers before the caller saw them.")
 
-users = [("alice", S1), ("bob", S2), ("intern", S3), ("anonymous", S4)]
+users = [("alice", S1), ("bob", S2), ("intern", S3), ("anonymous", S4), ("kagent", S5)]
 line = {"drawStyle": "line", "lineWidth": 2, "fillOpacity": 8, "showPoints": "never", "spanNulls": True}
 panel("timeseries", "Tokens per minute, by user", 0, 4, 14, 10,
       [(f'sum by (user) (rate({T}_sum[1m])) * 60', "{{user}}")],

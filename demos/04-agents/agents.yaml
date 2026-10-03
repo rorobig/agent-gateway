@@ -1,0 +1,66 @@
+# Demo 4: agents (kagent).  UI: http://kagent.localhost   A2A: http://agents.localhost
+#
+# Two agents, both plain Kubernetes resources:
+#   cluster-reader  looks at the cluster with read-only Kubernetes tools (MCP, kagent's tool server)
+#   tour-guide      has no tools of its own; it asks cluster-reader, agent to agent (A2A),
+#                   and explains the answer for an audience
+# Every LLM call either of them makes goes through agentgateway as user "kagent".
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: cluster-reader
+spec:
+  description: Looks at the Kubernetes cluster (read-only) and reports what it finds.
+  type: Declarative
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You inspect a Kubernetes cluster with read-only tools. Always call a tool before answering;
+      never guess. Report facts only: names, namespaces, status, counts. Keep it short.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          toolNames:
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_events
+            - k8s_get_pod_logs
+    a2aConfig:
+      skills:
+        - id: cluster-facts
+          name: Cluster facts
+          description: Lists and describes what is running in the cluster.
+          tags: [kubernetes, read-only]
+          examples:
+            - "Which pods are running in the ai namespace?"
+            - "Are there any failing pods?"
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: tour-guide
+spec:
+  description: Gives a friendly tour of this cluster, asking cluster-reader for the facts.
+  type: Declarative
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are a friendly tour guide for a Kubernetes cluster, talking to a conference audience.
+      You cannot see the cluster yourself: for any fact about it, call the cluster-reader agent
+      with one short, specific question. Then explain its answer in plain words, in at most
+      five sentences, with one light joke.
+    tools:
+      - type: Agent
+        agent:
+          name: cluster-reader
+    a2aConfig:
+      skills:
+        - id: cluster-tour
+          name: Cluster tour
+          description: Explains what runs in this cluster, in plain words.
+          tags: [kubernetes, explain]
+          examples:
+            - "What is running in the ai namespace?"

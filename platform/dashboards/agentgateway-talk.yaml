@@ -411,6 +411,21 @@ data:
             }
            }
           ]
+         },
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "kagent"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#d55181"
+            }
+           }
+          ]
          }
         ]
        },

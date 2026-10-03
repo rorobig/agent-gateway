@@ -1,0 +1,49 @@
+# The kagent UI, and the agents' A2A endpoints, behind the same gateway as everything else.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: kagent-ui
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - kagent.localhost
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: kagent-ui
+          port: 8080
+          weight: 1
+---
+# A2A: every agent has an agent card and a JSON-RPC endpoint under /api/a2a/<namespace>/<agent>/
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: agents
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: agentgateway-proxy
+      namespace: agentgateway-system
+  hostnames:
+    - agents.localhost
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api/a2a/
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: kagent-controller
+          port: 8083
+          weight: 1
