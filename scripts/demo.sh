@@ -32,6 +32,23 @@ ask() {
 
 title() { echo; echo "${B}${CYN}== $*${R}"; }
 
+# a2a AGENT PROMPT: send one A2A task (JSON-RPC message/send) to a kagent agent, print each step
+a2a() {
+  local url="http://agents.localhost/api/a2a/kagent/$1/" body
+  body=$(jq -nc --arg p "$2" --arg id "$(uuidgen)" \
+    '{jsonrpc:"2.0", id:1, method:"message/send", params:{message:{role:"user", messageId:$id, parts:[{kind:"text", text:$p}]}}}')
+  echo "${DIM}\$ curl $url -d '$body'${R}"
+  curl -s "$url" -H 'Content-Type: application/json' -d "$body" | jq -r --arg y "$YEL" --arg d "$DIM" --arg r "$R" '
+    if .error then "error: \(.error.message)" else
+      (.result.history[]? | select(.role == "agent") | .parts[] | (.data // {})
+        | if .name and .args then "\($y)-> calls \(.name | sub("^kagent__NS__"; "")): \(.args | tostring)\($r)"
+          elif .name then "\($d)<- \(.response.result // .response | tostring | .[:300])\($r)"
+          else empty end),
+      "", (.result.artifacts[]?.parts[]?.text // empty)
+    end' | fold -s -w 100
+  echo
+}
+
 case "${1:-}" in
   chat)    title "Through the gateway (llm.localhost), model alias '${3:-smart}'"
            ask llm.localhost "${2:-$Q_DEFAULT}" "${3:-smart}" ;;
@@ -73,6 +90,16 @@ case "${1:-}" in
                -d "$(jq -nc --arg p "$p" '{model:"any", messages:[{role:"user", content:$p}]}')")
              echo "$u  $code  $p"
            done ;;
+  agents)  title "Agent cards (A2A): each agent publishes what it can do"
+           for a in cluster-reader tour-guide; do
+             echo "${DIM}\$ curl http://agents.localhost/api/a2a/kagent/$a/.well-known/agent-card.json${R}"
+             curl -s "http://agents.localhost/api/a2a/kagent/$a/.well-known/agent-card.json" \
+               | jq '{name, description, skills: [.skills[].name]}'
+           done ;;
+  agent)   title "tour-guide (A2A) -> cluster-reader (A2A) -> Kubernetes tools (MCP); every LLM call via the gateway"
+           a2a tour-guide "${2:-What is running in the ai namespace?}" ;;
+  reader)  title "cluster-reader on its own: one agent, read-only Kubernetes tools (MCP)"
+           a2a cluster-reader "${2:-Are there any pods that are not running?}" ;;
   litellm) title "Same question, same Ollama: agentgateway (llm.localhost) vs LiteLLM (litellm.localhost)"
            ask llm.localhost "${2:-$Q_DEFAULT}" smart
            ask litellm.localhost "${2:-$Q_DEFAULT}" smart ;;
@@ -98,6 +125,14 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
    card | inject | unsafe        request guards: regex built-in, regex custom, Llama Guard
    mask                          response guard: emails/phones masked
    load                          background traffic for the Grafana dashboard
+
+ ${B}4. Agents (kagent)${R}              agents.localhost (A2A)  kagent.localhost (UI)
+   agents                        agent cards: what each agent says it can do
+   agent [question]              tour-guide asks cluster-reader (A2A), which uses k8s tools (MCP)
+   reader [question]             cluster-reader on its own
+
+ ${B}5. LiteLLM, for comparison${R}      litellm.localhost
+   litellm [prompt]              same question via agentgateway and via LiteLLM
 
  ${B}Watch${R}
    logs                          gateway access log
