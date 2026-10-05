@@ -27,7 +27,8 @@ Demo repo for a conference talk on agentgateway. README.md has the demos, URLs a
 
 - Ollama runs natively on the Mac (Apple GPU), not in Docker. Pods reach it at `host.k3d.internal:11434`.
 - Pods can't use `*.localhost`; the company endpoint is `api.ai.svc.cluster.local` from inside the cluster.
-- Models: `qwen2.5:7b` (smart/pro), `qwen2.5:1.5b` (fast/free), `llama-guard3:1b` (guard webhook).
+- Models: `qwen3.5:9b` (pro tier, thinking off via `reasoning_effort`), `qwen2.5:7b` (smart, agent tier),
+  `qwen2.5:1.5b` (fast, free tier), `llama-guard3:1b` (guard webhook).
   The 7B model needs explicit examples in agent prompts to make correct tool calls (see README gotchas).
 - Useful checks: gateway access log `./scripts/demo.sh logs` (has `user=` and token counts per request);
   agent logs `kubectl -n kagent logs deploy/<agent>`.

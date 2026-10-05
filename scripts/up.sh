@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 curl -sf localhost:11434/api/version >/dev/null || { echo "Ollama isn't running on the Mac (open the Ollama app)"; exit 1; }
-for m in qwen2.5:7b qwen2.5:1.5b llama-guard3:1b; do
+for m in qwen3.5:9b qwen2.5:7b qwen2.5:1.5b llama-guard3:1b; do
   ollama list | grep -q "^$m " || ollama pull "$m"
 done
 

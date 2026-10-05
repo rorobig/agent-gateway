@@ -62,6 +62,8 @@ case "${1:-}" in
            ask brief.localhost "${2:-$Q_DEFAULT}" ;;
   nokey)   title "api.localhost without an API key"
            ask api.localhost "${2:-$Q_DEFAULT}" ;;
+  badkey)  title "api.localhost with a key the gateway doesn't know"
+           ask api.localhost "${2:-$Q_DEFAULT}" any sk-mallory ;;
   as)      user=${2:?usage: demo.sh as <alice|bob|intern> [prompt]}
            title "api.localhost as $user (asks for any model; the gateway picks by tier)"
            ask api.localhost "${3:-$Q_DEFAULT}" gpt-5 "sk-$user" ;;
@@ -119,8 +121,8 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
    brief [prompt]                appended prompt + max_tokens override  brief.localhost
 
  ${B}3. The company endpoint${R}         api.localhost  (keys: sk-alice, sk-bob = pro, sk-intern = free)
-   nokey                         401: no key, no AI
-   as <user> [prompt]            model picked by tier: pro -> 7B, free -> 1.5B
+   nokey | badkey                401: no key / unknown key, no AI
+   as <user> [prompt]            model picked by tier: pro -> 9B, free -> 1.5B
    burn [user]                   token budget (intern: 400 tokens/min) -> 429
    card | inject | unsafe        request guards: regex built-in, regex custom, Llama Guard
    mask                          response guard: emails/phones masked

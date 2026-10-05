@@ -75,7 +75,7 @@ panel("timeseries", "p95 answer time, by model", 0, 23, 24, 8,
       [('histogram_quantile(0.95, sum by (le, gen_ai_response_model) (rate(agentgateway_gen_ai_server_request_duration_bucket[2m])))', "{{gen_ai_response_model}}")],
       "How long the model took to answer, measured at the gateway.",
       fieldConfig={"defaults": {"custom": line, "unit": "s", "min": 0},
-                   "overrides": [fixed("qwen2.5:7b", S1), fixed("qwen2.5:1.5b", S2)]},
+                   "overrides": [fixed("qwen2.5:7b", S1), fixed("qwen2.5:1.5b", S2), fixed("qwen3.5:9b", S3)]},
       options={"legend": {"displayMode": "list", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}})
 
 dash = {"uid": "agentgateway-talk", "title": "agentgateway: the talk", "editable": True, "refresh": "5s",

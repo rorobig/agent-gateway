@@ -55,11 +55,12 @@ max" and *overrides* `max_tokens` and `temperature`. In testing, "How does DNS w
 plain and **23** through `brief`. That is cost control without touching a single client.
 
 ### 3. The company endpoint (`demos/03-company`, `demos/guard`)
-Three API keys (`keys.yaml`): `sk-alice` and `sk-bob` (tier `pro`), `sk-intern` (tier `free`).
+API keys (`keys.yaml`): `sk-alice` and `sk-bob` (tier `pro`), `sk-intern` (tier `free`), `sk-kagent` (tier `agent`, demo 4).
 
 ```bash
 ./scripts/demo.sh nokey          # 401, before anything else happens
-./scripts/demo.sh as alice       # asks for "gpt-5", gets qwen2.5:7b    (pro)
+./scripts/demo.sh badkey         # 401, a key the gateway doesn't know
+./scripts/demo.sh as alice       # asks for "gpt-5", gets qwen3.5:9b    (pro)
 ./scripts/demo.sh as intern      # asks for "gpt-5", gets qwen2.5:1.5b  (free)
 ./scripts/demo.sh burn intern    # 400 tokens/min budget -> 429 after ~2 answers
 ./scripts/demo.sh card           # 403: credit card number (built-in regex)
@@ -75,7 +76,7 @@ What's going on, in request order:
 |---|---|---|
 | Who are you? | `route.yaml`, `apiKeyAuthentication` | key -> `apiKey.user_id`, `apiKey.tier` (CEL), available to every later step |
 | Budget left? | `route.yaml`, `rateLimit.conditional` | counted in **tokens**, per tier; first matching `condition` wins |
-| Which model? | `backend.yaml`, `transformations` | `apiKey.tier == "pro" ? "qwen2.5:7b" : "qwen2.5:1.5b"`, whatever the client asked |
+| Which model? | `backend.yaml`, `transformations` | pro -> `qwen3.5:9b`, agent -> `qwen2.5:7b`, free -> `qwen2.5:1.5b`, whatever the client asked; thinking off |
 | Safe prompt? | `backend.yaml`, `promptGuard.request` | regex built-ins -> custom regex -> Llama Guard webhook; a reject means the model is never called |
 | Safe answer? | `backend.yaml`, `promptGuard.response` | emails and phone numbers masked |
 | Who spent what? | `platform/gateway/telemetry.yaml` | a `user` label on every metric, `user`/tokens on every access log line |
@@ -116,7 +117,7 @@ Good live edits:
 - the pirate persona (`demos/02-prompt/pirate.yaml`)
 - the intern's budget (`demos/03-company/route.yaml`)
 - `Mask` -> `Reject` on the response guard (`demos/03-company/backend.yaml`)
-- point `smart` at `qwen3.5:9b` (`demos/01-chat/chat.yaml`)
+- point `smart` at `qwen3.5:9b` (`demos/01-chat/chat.yaml`), or pro at `qwen2.5:7b` (`demos/03-company/backend.yaml`)
 
 The dashboard is generated: edit `scripts/make-dashboard.py`, run it, push. (Argo reverts edits made in the Grafana UI.)
 

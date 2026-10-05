@@ -21,11 +21,15 @@ spec:
       name: company
   backend:
     ai:
-      # Tier-based model routing: whatever model the caller asks for, pro users get the 7B model and
-      # free users get the 1.5B one. Look at "model" in the response.
+      # Tier-based model routing: whatever model the caller asks for, pro users get qwen3.5:9b,
+      # the agents get qwen2.5:7b (fast, good enough with a clear prompt) and free users qwen2.5:1.5b.
+      # Look at "model" in the response.
       transformations:
         - field: model
-          expression: 'apiKey.tier == "pro" ? "qwen2.5:7b" : "qwen2.5:1.5b"'
+          expression: 'apiKey.tier == "pro" ? "qwen3.5:9b" : apiKey.tier == "agent" ? "qwen2.5:7b" : "qwen2.5:1.5b"'
+        # qwen3.5 "thinks" before answering (~40 s); switched off here for every caller. Older models ignore it.
+        - field: reasoning_effort
+          expression: '"none"'
       promptGuard:
         # Checked BEFORE the model sees the prompt, in this order. Reject = the model is never called.
         request:

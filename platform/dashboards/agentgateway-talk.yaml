@@ -808,6 +808,21 @@ data:
             }
            }
           ]
+         },
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "qwen3.5:9b"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#199e70"
+            }
+           }
+          ]
          }
         ]
        },
