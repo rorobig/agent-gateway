@@ -1,4 +1,4 @@
-# What the gateway does to the AI traffic itself, for the company endpoint.
+  # What the gateway does to the AI traffic itself, for the company endpoint.
 apiVersion: agentgateway.dev/v1alpha1
 kind: AgentgatewayBackend
 metadata:
