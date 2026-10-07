@@ -114,12 +114,13 @@ Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:
 ### 6. An agent that fixes things (`demos/04-agents/fixer.yaml`, `demos/06-fix`)
 ```bash
 ./scripts/demo.sh break          # deploys the shop, then a typo in its image: ErrImagePull, shop.localhost 503
-./scripts/demo.sh fix            # fixer: list pods -> describe -> patch the image -> check; shop.localhost 200
+./scripts/demo.sh fix            # fixer: list pods -> describe -> roll back the deploy -> check; shop.localhost 200
 ```
-`fixer` has the same Kubernetes tools as `cluster-reader` plus `k8s_patch_resource` and `k8s_rollout`.
+`fixer` can read pods and roll a deployment back (`k8s_rollout` undo), nothing else. Rolling back is what an
+on-call engineer does first, and it means the model never has to write a JSON patch.
 It has its own key (`sk-fixer`, tier `pro`, so `qwen3.5:9b`) and its own line on the dashboard. The shop is
 applied by `demo.sh`, not Argo CD, because Argo would self-heal both the breakage and the fix.
-Expect about a minute. The prompt tells it to stay in the `playground` namespace, but nothing enforces that:
+Expect about 30 seconds. The prompt tells it to stay in the `playground` namespace, but nothing enforces that:
 its tool server could patch anything. That is the argument for putting MCP behind the gateway too.
 
 ## Changing things live
@@ -157,8 +158,14 @@ scripts/                 up, down, sync, demo, make-dashboard
 - **Llama Guard judged agents' own replies.** Sent the whole conversation, it classifies the *last* turn;
   in an agent loop that's the agent's own text ("I'll patch the deployment"), blocked as "specialized advice".
   `guard.py` now sends only the user's messages. And a blocked LLM call makes a kagent agent hang for minutes.
-- **qwen2.5:7b can't reliably fix things:** in 5 break/fix runs it broke the patch JSON once and wandered
-  off twice. `qwen3.5:9b` (thinking off) is slower but gets it right.
+- **Small models and multi-step fixes:** asked to patch the image, qwen2.5:7b got 3 of 5 runs right and
+  qwen3.5:9b still wrote broken JSON (an extra `}`) or guessed the deployment from the ReplicaSet name.
+  Rolling back instead (no JSON to write) plus "pod name minus its last two parts" in the prompt fixed both.
+- **Don't give an agent `k8s_get_events`** when a demo runs many times: events pile up, one call returned
+  ~16k tokens, and that LLM call took 100 s. Describing the pod shows its events anyway.
+- **Agents burn through human-sized budgets.** One fix is ~12k tokens; two in a minute hit the pro tier's
+  20k/min and got 429s. kagent then waits and retries for minutes instead of failing. Agents now get 100k/min.
+- **`kubectl logs -l <selector>` shows only the last 10 lines.** Add `--tail=-1` when digging.
 - **kagent agent cards are at `.well-known/agent-card.json`** (A2A 0.3/1.0), not `agent.json`.
 
 - **Ollama in Docker on a Mac is CPU-only.** So Ollama runs natively and the cluster reaches it at

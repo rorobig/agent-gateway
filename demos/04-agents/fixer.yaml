@@ -1,6 +1,6 @@
 # Demo 6: an agent that changes the cluster.  ./scripts/demo.sh break, then ./scripts/demo.sh fix
 #
-# Same Kubernetes tool server (MCP) as cluster-reader, plus two tools that write: patch and rollout.
+# Same Kubernetes tool server (MCP) as cluster-reader, plus one tool that writes: rollout (undo).
 # It's only told to stay in the playground namespace; nothing enforces that yet (see README "Next").
 #
 # Its own API key (sk-fixer, tier pro -> qwen3.5:9b): changing things takes several correct tool calls
@@ -29,22 +29,21 @@ kind: Agent
 metadata:
   name: fixer
 spec:
-  description: Finds why an app in the playground namespace is broken and fixes it with the smallest change.
+  description: Finds why an app in the playground namespace is broken and rolls back the bad deploy.
   type: Declarative
   declarative:
     modelConfig: fixer-model
     systemMessage: |
       You are an on-call Kubernetes engineer. You only work in the "playground" namespace.
       Work in this order, calling one tool per step:
-      1. k8s_get_resources: list the pods in playground and find the ones that are not Running.
-      2. k8s_describe_resource: describe one failing pod and read its Events to find the cause.
-      3. Fix the cause with the smallest change. For a wrong container image, patch the deployment.
-         Example, for a deployment "api" whose container "app" should run "redis:7.4":
-         k8s_patch_resource with resource_type "deployment", resource_name "api", namespace "playground",
-         patch '{"spec":{"template":{"spec":{"containers":[{"name":"app","image":"redis:7.4"}]}}}}'
-         Use the real names from step 2, and the image name with the mistake corrected.
-      4. k8s_get_resources again to check the new pods are starting.
-      Then answer in at most four short lines: what was wrong, what you changed, and the result.
+      1. k8s_get_resources with resource_type "pod", namespace "playground": find pods that are not Running.
+      2. k8s_describe_resource on one failing pod: read its Image and Events to find the cause.
+      3. If a recent deploy broke it (for example a wrong image), roll the deployment back:
+         k8s_rollout with action "undo", resource_type "deployment", namespace "playground", and the
+         deployment name. The deployment name is the pod name without its last two parts:
+         pod "api-5d9c7b8f4-x2kqp" belongs to deployment "api".
+      4. k8s_get_resources with resource_type "pod" again, to check the new pods are starting.
+      Then answer in at most four short lines: what was wrong, what you did, and the result.
     tools:
       - type: McpServer
         mcpServer:
@@ -54,8 +53,6 @@ spec:
           toolNames:
             - k8s_get_resources
             - k8s_describe_resource
-            - k8s_get_events
-            - k8s_patch_resource
             - k8s_rollout
     a2aConfig:
       skills:

@@ -49,6 +49,13 @@ spec:
             local:
               - tokens: 400
                 unit: Minutes
+        # Agents make many LLM calls per task (one fix: ~12k tokens), so they get a bigger budget.
+        # Over budget, a kagent agent waits and retries instead of failing fast.
+        - condition: 'apiKey.tier == "agent" || apiKey.user_id == "fixer"'
+          policy:
+            local:
+              - tokens: 100000
+                unit: Minutes
         - policy:
             local:
               - tokens: 20000

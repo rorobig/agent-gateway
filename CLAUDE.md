@@ -33,3 +33,6 @@ Demo repo for a conference talk on agentgateway. README.md has the demos, URLs a
   The 7B model needs explicit examples in agent prompts to make correct tool calls (see README gotchas).
 - Useful checks: gateway access log `./scripts/demo.sh logs` (has `user=` and token counts per request);
   agent logs `kubectl -n kagent logs deploy/<agent>`.
+  `kubectl logs -l <selector>` returns only 10 lines unless you add `--tail=-1`.
+- Testing an agent change without a push: apply a renamed copy (e.g. `fixer-test`); Argo reverts the real one.
+  Delete the copy afterwards.
