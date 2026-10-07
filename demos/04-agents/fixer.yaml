@@ -1,0 +1,67 @@
+# Demo 6: an agent that changes the cluster.  ./scripts/demo.sh break, then ./scripts/demo.sh fix
+#
+# Same Kubernetes tool server (MCP) as cluster-reader, plus two tools that write: patch and rollout.
+# It's only told to stay in the playground namespace; nothing enforces that yet (see README "Next").
+#
+# Its own API key (sk-fixer, tier pro -> qwen3.5:9b): changing things takes several correct tool calls
+# in a row, and qwen2.5:7b got about half of those runs wrong. It also gets its own line on the dashboard.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fixer-key
+stringData:
+  OPENAI_API_KEY: sk-fixer
+---
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: fixer-model
+spec:
+  provider: OpenAI
+  model: smart                     # ignored: the gateway picks the model from the key's tier
+  apiKeySecret: fixer-key
+  apiKeySecretKey: OPENAI_API_KEY
+  openAI:
+    baseUrl: http://api.ai.svc.cluster.local/v1
+---
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: fixer
+spec:
+  description: Finds why an app in the playground namespace is broken and fixes it with the smallest change.
+  type: Declarative
+  declarative:
+    modelConfig: fixer-model
+    systemMessage: |
+      You are an on-call Kubernetes engineer. You only work in the "playground" namespace.
+      Work in this order, calling one tool per step:
+      1. k8s_get_resources: list the pods in playground and find the ones that are not Running.
+      2. k8s_describe_resource: describe one failing pod and read its Events to find the cause.
+      3. Fix the cause with the smallest change. For a wrong container image, patch the deployment.
+         Example, for a deployment "api" whose container "app" should run "redis:7.4":
+         k8s_patch_resource with resource_type "deployment", resource_name "api", namespace "playground",
+         patch '{"spec":{"template":{"spec":{"containers":[{"name":"app","image":"redis:7.4"}]}}}}'
+         Use the real names from step 2, and the image name with the mistake corrected.
+      4. k8s_get_resources again to check the new pods are starting.
+      Then answer in at most four short lines: what was wrong, what you changed, and the result.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          toolNames:
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_events
+            - k8s_patch_resource
+            - k8s_rollout
+    a2aConfig:
+      skills:
+        - id: fix-playground
+          name: Fix the playground
+          description: Diagnoses and fixes a broken app in the playground namespace.
+          tags: [kubernetes, fix]
+          examples:
+            - "The shop in the playground namespace is down. Fix it."

@@ -102,6 +102,20 @@ case "${1:-}" in
            a2a tour-guide "${2:-What is running in the ai namespace?}" ;;
   reader)  title "cluster-reader on its own: one agent, read-only Kubernetes tools (MCP)"
            a2a cluster-reader "${2:-Are there any pods that are not running?}" ;;
+  break)   title "Deploying the shop, then shipping a typo in its image (ngnix)"
+           kubectl apply -f demos/06-fix/shop.yaml >/dev/null
+           kubectl -n playground set image deploy/shop web=nginx:1.27-alpine >/dev/null
+           kubectl -n playground rollout status deploy/shop --timeout=120s >/dev/null
+           echo "${DIM}\$ kubectl -n playground set image deploy/shop web=ngnix:1.27-alpine${R}"
+           kubectl -n playground set image deploy/shop web=ngnix:1.27-alpine >/dev/null
+           until kubectl -n playground get pods --no-headers 2>/dev/null | grep -qE 'ErrImagePull|ImagePullBackOff'; do sleep 1; done
+           kubectl -n playground get pods
+           echo; echo "http://shop.localhost -> $(curl -s -o /dev/null -w '%{http_code}' http://shop.localhost/)" ;;
+  fix)     title "fixer: find what's wrong in playground and fix it (Kubernetes tools over MCP, LLM via the gateway)"
+           a2a fixer "${2:-The shop in the playground namespace is down. Find out why and fix it.}"
+           kubectl -n playground rollout status deploy/shop --timeout=90s >/dev/null 2>&1
+           kubectl -n playground get pods
+           echo; echo "http://shop.localhost -> $(curl -s -o /dev/null -w '%{http_code}' http://shop.localhost/)" ;;
   litellm) title "Same question, same Ollama: agentgateway (llm.localhost) vs LiteLLM (litellm.localhost)"
            ask llm.localhost "${2:-$Q_DEFAULT}" smart
            ask litellm.localhost "${2:-$Q_DEFAULT}" smart ;;
@@ -132,6 +146,10 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
    agents                        agent cards: what each agent says it can do
    agent [question]              tour-guide asks cluster-reader (A2A), which uses k8s tools (MCP)
    reader [question]             cluster-reader on its own
+
+ ${B}6. An agent that fixes things${R}   shop.localhost
+   break                         deploy the shop, then ship a typo in its image (ngnix)
+   fix                           the fixer agent finds it and patches the deployment
 
  ${B}5. LiteLLM, for comparison${R}      litellm.localhost
    litellm [prompt]              same question via agentgateway and via LiteLLM

@@ -32,11 +32,13 @@ def text(content):
 
 
 def classify(messages):
-    # Only what the caller wrote: skip system prompts the gateway itself added.
-    convo = [{"role": m["role"], "content": text(m.get("content"))}
-             for m in messages if m.get("role") in ("user", "assistant")]
-    if not convo:
+    # Only what the caller wrote (user messages), as one prompt. If the conversation ends with an
+    # assistant turn, Llama Guard judges that answer instead of the prompt: agents' own replies
+    # ("I'll patch the deployment...") then get blocked as "specialized advice".
+    asked = "\n\n".join(t for m in messages if m.get("role") == "user" and (t := text(m.get("content"))))
+    if not asked:
         return "safe"
+    convo = [{"role": "user", "content": asked}]
     req = urllib.request.Request(
         f"{OLLAMA}/api/chat",
         data=json.dumps({"model": MODEL, "messages": convo, "stream": False}).encode(),

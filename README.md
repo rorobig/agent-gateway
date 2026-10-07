@@ -31,6 +31,7 @@ Needs: Docker (12 GB+ memory), k3d, helm, kubectl, jq, and the [Ollama app](http
 | http://api.localhost | demo 3: the company endpoint (API key needed) |
 | http://kagent.localhost, http://agents.localhost | demo 4: agents (kagent UI, A2A endpoints) |
 | http://litellm.localhost | demo 5: LiteLLM, for comparison |
+| http://shop.localhost | demo 6: the app the fixer agent repairs (after `demo.sh break`) |
 
 All of them are OpenAI-compatible: `POST /v1/chat/completions`. Any OpenAI SDK or chat UI works with
 `base_url=http://api.localhost/v1` and `api_key=sk-alice`.
@@ -110,6 +111,17 @@ LiteLLM does demo 1's job (`fast`/`smart` aliases in front of the same Ollama) f
 Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:7b`), LiteLLM the alias
 (`smart`). agentgateway only routes to LiteLLM here; it doesn't see tokens on this route.
 
+### 6. An agent that fixes things (`demos/04-agents/fixer.yaml`, `demos/06-fix`)
+```bash
+./scripts/demo.sh break          # deploys the shop, then a typo in its image: ErrImagePull, shop.localhost 503
+./scripts/demo.sh fix            # fixer: list pods -> describe -> patch the image -> check; shop.localhost 200
+```
+`fixer` has the same Kubernetes tools as `cluster-reader` plus `k8s_patch_resource` and `k8s_rollout`.
+It has its own key (`sk-fixer`, tier `pro`, so `qwen3.5:9b`) and its own line on the dashboard. The shop is
+applied by `demo.sh`, not Argo CD, because Argo would self-heal both the breakage and the fix.
+Expect about a minute. The prompt tells it to stay in the `playground` namespace, but nothing enforces that:
+its tool server could patch anything. That is the argument for putting MCP behind the gateway too.
+
 ## Changing things live
 
 Everything is GitOps: edit, commit, push, then `./scripts/sync.sh` (Argo otherwise polls every 30 s).
@@ -142,6 +154,11 @@ scripts/                 up, down, sync, demo, make-dashboard
 - **qwen2.5:7b and A2A tool calls:** it sent `tour-guide`'s `request` argument as an object 9 times in 10.
   An example string in the system prompt made it 10 out of 10 (and 1.5 s per call). `qwen3.5:9b` gets it
   right without the hint but takes ~40 s per call while thinking (~3 s with `reasoning_effort: none`).
+- **Llama Guard judged agents' own replies.** Sent the whole conversation, it classifies the *last* turn;
+  in an agent loop that's the agent's own text ("I'll patch the deployment"), blocked as "specialized advice".
+  `guard.py` now sends only the user's messages. And a blocked LLM call makes a kagent agent hang for minutes.
+- **qwen2.5:7b can't reliably fix things:** in 5 break/fix runs it broke the patch JSON once and wandered
+  off twice. `qwen3.5:9b` (thinking off) is slower but gets it right.
 - **kagent agent cards are at `.well-known/agent-card.json`** (A2A 0.3/1.0), not `agent.json`.
 
 - **Ollama in Docker on a Mac is CPU-only.** So Ollama runs natively and the cluster reaches it at
@@ -156,6 +173,7 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 ## Next
 
-- kagent's MCP tool calls through the gateway too (today only its LLM calls are)
+- kagent's MCP tool calls through the gateway too (today only its LLM calls are), with per-agent tool
+  access: cluster-reader read-only, fixer only in `playground`
 - the A2A route as an A2A-aware agentgateway backend (today: plain HTTP routing)
 - a chat UI (Open WebUI) pointed at `api.localhost`

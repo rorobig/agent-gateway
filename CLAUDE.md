@@ -26,6 +26,7 @@ Demo repo for a conference talk on agentgateway. README.md has the demos, URLs a
 ## Environment facts
 
 - Ollama runs natively on the Mac (Apple GPU), not in Docker. Pods reach it at `host.k3d.internal:11434`.
+- `demos/06-fix/shop.yaml` (namespace `playground`) is applied by `demo.sh break`, deliberately outside Argo.
 - Pods can't use `*.localhost`; the company endpoint is `api.ai.svc.cluster.local` from inside the cluster.
 - Models: `qwen3.5:9b` (pro tier, thinking off via `reasoning_effort`), `qwen2.5:7b` (smart, agent tier),
   `qwen2.5:1.5b` (fast, free tier), `llama-guard3:1b` (guard webhook).

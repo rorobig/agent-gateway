@@ -10,3 +10,4 @@ stringData:
   bob: '{"key": "sk-bob", "metadata": {"user_id": "bob", "tier": "pro"}}'
   intern: '{"key": "sk-intern", "metadata": {"user_id": "intern", "tier": "free"}}'
   kagent: '{"key": "sk-kagent", "metadata": {"user_id": "kagent", "tier": "agent"}}'   # the agents (demo 4)
+  fixer: '{"key": "sk-fixer", "metadata": {"user_id": "fixer", "tier": "pro"}}'      # the fixer agent (demo 6)
