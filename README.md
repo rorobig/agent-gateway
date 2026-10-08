@@ -170,6 +170,9 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 - **Ollama in Docker on a Mac is CPU-only.** So Ollama runs natively and the cluster reaches it at
   `host.k3d.internal`.
+- **`host.k3d.internal` disappears when Docker restarts.** k3d puts it in the cluster DNS at create time;
+  k3s rewrites that table on restart, and every AI route fails with "backends required DNS resolution which
+  failed". `platform/gateway/host-dns.yaml` makes it a permanent alias for Docker's `host.docker.internal`.
 - **Only one AgentgatewayPolicy per section per target.** Two `traffic` policies on the same route: one silently
   wins (both report Accepted). Combine them.
 - **The Grafana chart generates a new admin password on every render**, so under Argo it restarts forever.

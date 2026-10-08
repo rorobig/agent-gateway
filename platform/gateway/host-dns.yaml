@@ -1,0 +1,15 @@
+# host.k3d.internal = the Mac (where Ollama runs). k3d adds that name to the cluster DNS when it creates the
+# cluster, but k3s rewrites its DNS table on every restart (Docker restart, laptop reboot) and the name is gone:
+# every AI route then fails with "backends required DNS resolution which failed".
+# This makes it a permanent alias for Docker Desktop's own name for the host. k3s's CoreDNS loads it from here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  host-k3d.override: |
+    rewrite stop {
+      name exact host.k3d.internal host.docker.internal
+      answer auto
+    }
