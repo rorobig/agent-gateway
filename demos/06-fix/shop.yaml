@@ -7,6 +7,67 @@ kind: Namespace
 metadata:
   name: playground
 ---
+# The shop's page: plain nginx with our HTML mounted in, so the image name stays a plain nginx tag (the thing
+# the demo breaks). nginx fills in which pod served the page; it reloads every 3 s, so you see both pods.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-site
+  namespace: playground
+data:
+  default.conf: |
+    server {
+      listen 80;
+      root /usr/share/nginx/html;
+      ssi on;
+      add_header Cache-Control no-store;
+    }
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="3">
+    <title>The Agent Shop</title>
+    <style>
+      :root { --bg: #0f1115; --card: #1a1d24; --text: #f2f3f5; --muted: #9aa0aa; --ok: #2fbf71; --accent: #f5b83d; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+             font: 18px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+             display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 16px; }
+      h1 { font-size: clamp(40px, 8vw, 88px); margin: 0; letter-spacing: -0.02em; }
+      .status { margin: 16px 0 8px; font-size: clamp(20px, 3vw, 30px); color: var(--ok); font-weight: 700; }
+      .status::before { content: ""; display: inline-block; width: .7em; height: .7em; border-radius: 50%;
+                        background: var(--ok); margin-right: .4em; animation: pulse 1.5s infinite; }
+      @keyframes pulse { 50% { opacity: .3; } }
+      .pod { color: var(--muted); font-size: clamp(16px, 2.2vw, 22px); }
+      .pod b { color: var(--accent); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .shelf { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+               width: 100%; max-width: 900px; margin-top: 40px; }
+      .item { background: var(--card); border-radius: 14px; padding: 20px; }
+      .item .emoji { font-size: 40px; }
+      .item h2 { font-size: 20px; margin: 8px 0 4px; }
+      .item p { margin: 0; color: var(--muted); }
+      .item .price { margin-top: 10px; color: var(--accent); font-weight: 700; }
+    </style>
+    </head>
+    <body>
+      <h1>🛒 The Agent Shop</h1>
+      <div class="status">Open for business</div>
+      <div class="pod">served by pod <b><!--# echo var="hostname" --></b>
+        at <!--# config timefmt="%H:%M:%S" --><!--# echo var="date_local" --></div>
+      <div class="shelf">
+        <div class="item"><div class="emoji">🪙</div><h2>Fresh tokens</h2>
+          <p>Locally grown on an Apple GPU.</p><div class="price">20,000 / minute (pro)</div></div>
+        <div class="item"><div class="emoji">📜</div><h2>Artisanal YAML</h2>
+          <p>Hand-indented. Defaults spelled out.</p><div class="price">git push to order</div></div>
+        <div class="item"><div class="emoji">🛟</div><h2>Rollback insurance</h2>
+          <p>An agent on call, 24/7, read-mostly.</p><div class="price">kubectl rollout undo</div></div>
+      </div>
+    </body>
+    </html>
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,6 +91,12 @@ spec:
           resources:
             requests: { cpu: 10m, memory: 16Mi }
             limits: { memory: 64Mi }
+          volumeMounts:
+            - { name: site, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf }
+            - { name: site, mountPath: /usr/share/nginx/html/index.html, subPath: index.html }
+      volumes:
+        - name: site
+          configMap: { name: shop-site }
 ---
 apiVersion: v1
 kind: Service
