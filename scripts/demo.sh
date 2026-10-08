@@ -2,6 +2,7 @@
 # Stage helper. Every demo prints the exact curl it runs, then the answer + model + tokens.
 #   ./scripts/demo.sh            list the demos
 set -uo pipefail
+cd "$(dirname "$0")/.."        # repo root, so demos/... paths work from any directory
 
 B=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[31m'; GRN=$'\e[32m'; YEL=$'\e[33m'; CYN=$'\e[36m'; R=$'\e[0m'
 HDR="${TMPDIR:-/tmp}/agw-headers"
