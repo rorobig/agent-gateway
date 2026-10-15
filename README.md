@@ -93,14 +93,16 @@ contract (`POST /request` -> pass / reject). It runs `llama-guard3:1b` in the sa
 ./scripts/demo.sh reader "Are there any pods that are not running?"
 ```
 ```
-you ──A2A──▶ agents.localhost ─▶ tour-guide ──A2A──▶ cluster-reader ──MCP──▶ read-only k8s tools
+you ──A2A──▶ agents.localhost ─▶ tour-guide ──A2A──▶ cluster-reader ──MCP──▶ tools.kagent.svc.cluster.local ─▶ k8s tools
                                      │                     │
                                      └──── LLM calls ──────┴──▶ api.ai.svc.cluster.local (= api.localhost)
 ```
 Two agents, both just `Agent` resources. `tour-guide` has no tools; its only "tool" is the other agent,
 called over **A2A** (agent-to-agent protocol). `cluster-reader` uses kagent's Kubernetes tools over **MCP**.
 Both make their LLM calls through the company endpoint with key `sk-kagent`: the agents are just another
-user, with a token budget, the guards, and their own `kagent` line on the dashboard. Chat with them in the
+user, with a token budget, the guards, and their own `kagent` line on the dashboard.
+Their tool calls go through agentgateway too (`tools.yaml`), with the same key: no key, no tools (401), and
+every call is in the access log with `user=` and `gen_ai.tool.name=`. Chat with them in the
 UI at http://kagent.localhost.
 
 ### 5. LiteLLM, for comparison (`demos/05-litellm`)
@@ -120,8 +122,9 @@ Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:
 on-call engineer does first, and it means the model never has to write a JSON patch.
 It has its own key (`sk-fixer`, tier `pro`, so `qwen3.5:9b`) and its own line on the dashboard. The shop is
 applied by `demo.sh`, not Argo CD, because Argo would self-heal both the breakage and the fix.
-Expect about 30 seconds. The prompt tells it to stay in the `playground` namespace, but nothing enforces that:
-its tool server could patch anything. That is the argument for putting MCP behind the gateway too.
+Expect about 30 seconds. Afterwards `fix` prints the tool calls as the gateway saw them (`user="fixer"
+tool=k8s_rollout`). The prompt tells it to stay in the `playground` namespace, but nothing enforces that yet:
+kagent's tool server runs as cluster-admin, so the gateway sees every call but doesn't limit them.
 
 ## Changing things live
 
@@ -183,7 +186,7 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 ## Next
 
-- kagent's MCP tool calls through the gateway too (today only its LLM calls are), with per-agent tool
-  access: cluster-reader read-only, fixer only in `playground`
+- per-agent tool access at the gateway (`backend.mcp.authorization`, CEL on `apiKey.user_id` and
+  `mcp.tool.name`), and RBAC so the fixer's tools can only touch `playground`
 - the A2A route as an A2A-aware agentgateway backend (today: plain HTTP routing)
 - a chat UI (Open WebUI) pointed at `api.localhost`

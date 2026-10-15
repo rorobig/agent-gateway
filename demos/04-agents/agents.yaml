@@ -1,10 +1,10 @@
 # Demo 4: agents (kagent).  UI: http://kagent.localhost   A2A: http://agents.localhost
 #
 # Two agents, both plain Kubernetes resources:
-#   cluster-reader  looks at the cluster with read-only Kubernetes tools (MCP, kagent's tool server)
+#   cluster-reader  looks at the cluster with read-only Kubernetes tools (MCP, via agentgateway: tools.yaml)
 #   tour-guide      has no tools of its own; it asks cluster-reader, agent to agent (A2A),
 #                   and explains the answer for an audience
-# Every LLM call either of them makes goes through agentgateway as user "kagent".
+# Every LLM call and tool call either of them makes goes through agentgateway as user "kagent".
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
@@ -22,7 +22,7 @@ spec:
         mcpServer:
           apiGroup: kagent.dev
           kind: RemoteMCPServer
-          name: kagent-tool-server
+          name: tools-as-kagent
           toolNames:
             - k8s_get_resources
             - k8s_describe_resource

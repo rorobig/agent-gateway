@@ -99,7 +99,7 @@ case "${1:-}" in
              curl -s "http://agents.localhost/api/a2a/kagent/$a/.well-known/agent-card.json" \
                | jq '{name, description, skills: [.skills[].name]}'
            done ;;
-  agent)   title "tour-guide (A2A) -> cluster-reader (A2A) -> Kubernetes tools (MCP); every LLM call via the gateway"
+  agent)   title "tour-guide (A2A) -> cluster-reader (A2A) -> Kubernetes tools (MCP); LLM and tool calls via the gateway"
            a2a tour-guide "${2:-What is running in the ai namespace?}" ;;
   reader)  title "cluster-reader on its own: one agent, read-only Kubernetes tools (MCP)"
            a2a cluster-reader "${2:-Are there any pods that are not running?}" ;;
@@ -112,8 +112,14 @@ case "${1:-}" in
            until kubectl -n playground get pods --no-headers 2>/dev/null | grep -qE 'ErrImagePull|ImagePullBackOff'; do sleep 1; done
            kubectl -n playground get pods
            echo; echo "http://shop.localhost -> $(curl -s -o /dev/null -w '%{http_code}' http://shop.localhost/)" ;;
-  fix)     title "fixer: find what's wrong in playground and fix it (Kubernetes tools over MCP, LLM via the gateway)"
+  fix)     title "fixer: find what's wrong in playground and fix it (LLM calls and tool calls via the gateway)"
+           since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
            a2a fixer "${2:-The shop in the playground namespace is down. Find out why and fix it.}"
+           echo "${B}The tool calls, as the gateway saw them:${R}"
+           kubectl -n agentgateway-system logs -l gateway.networking.k8s.io/gateway-name=agentgateway-proxy \
+             --since-time="$since" --tail=-1 | grep 'route=kagent/tools.*tools/call' \
+             | sed -E 's/.*http.status=([0-9]+).*gen_ai.tool.name=([^ ]+).*user=("[^"]*").*/  user=\3  tool=\2  status=\1/'
+           echo
            kubectl -n playground rollout status deploy/shop --timeout=90s >/dev/null 2>&1
            kubectl -n playground get pods
            echo; echo "http://shop.localhost -> $(curl -s -o /dev/null -w '%{http_code}' http://shop.localhost/)" ;;
@@ -150,7 +156,7 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
 
  ${B}6. An agent that fixes things${R}   shop.localhost
    break                         deploy the shop, then ship a typo in its image (ngnix)
-   fix                           the fixer agent finds it and patches the deployment
+   fix                           the fixer agent finds it and rolls the deployment back
 
  ${B}5. LiteLLM, for comparison${R}      litellm.localhost
    litellm [prompt]              same question via agentgateway and via LiteLLM
