@@ -1,8 +1,8 @@
 # Demo 6: an agent that changes the cluster.  ./scripts/demo.sh break, then ./scripts/demo.sh fix
 #
 # Same Kubernetes tools (MCP, via agentgateway) as cluster-reader, plus one tool that writes: rollout (undo).
-# The gateway logs every tool call as user "fixer". It's only told to stay in the playground namespace;
-# nothing enforces that yet (see README "Next").
+# The gateway logs every tool call as user "fixer" and allows only these three tools (tools.yaml).
+# It's only told to stay in the playground namespace; nothing enforces that yet (see README "Next").
 #
 # Its own API key (sk-fixer, tier pro -> qwen3.5:9b): changing things takes several correct tool calls
 # in a row, and qwen2.5:7b got about half of those runs wrong. It also gets its own line on the dashboard.

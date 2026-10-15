@@ -67,6 +67,25 @@ spec:
       secretRef:
         name: tool-keys
 ---
+# Which agent may call which tool. Anything not listed is denied: the agent doesn't even see the tool.
+apiVersion: agentgateway.dev/v1alpha1
+kind: AgentgatewayPolicy
+metadata:
+  name: tools-per-agent
+spec:
+  targetRefs:
+    - group: agentgateway.dev
+      kind: AgentgatewayBackend
+      name: k8s-tools
+  backend:
+    mcp:
+      authorization:
+        action: Allow
+        policy:
+          matchExpressions:
+            - 'apiKey.user_id == "kagent" && mcp.tool.name in ["k8s_get_resources", "k8s_describe_resource", "k8s_get_events", "k8s_get_pod_logs"]'
+            - 'apiKey.user_id == "fixer" && mcp.tool.name in ["k8s_get_resources", "k8s_describe_resource", "k8s_rollout"]'
+---
 apiVersion: v1
 kind: Secret
 metadata:

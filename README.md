@@ -102,7 +102,8 @@ called over **A2A** (agent-to-agent protocol). `cluster-reader` uses kagent's Ku
 Both make their LLM calls through the company endpoint with key `sk-kagent`: the agents are just another
 user, with a token budget, the guards, and their own `kagent` line on the dashboard.
 Their tool calls go through agentgateway too (`tools.yaml`), with the same key: no key, no tools (401), and
-every call is in the access log with `user=` and `gen_ai.tool.name=`. Chat with them in the
+every call is in the access log with `user=` and `gen_ai.tool.name=`. The gateway also decides which tools
+each agent may call (`tools-per-agent`); anything else is "Unknown tool", the agent doesn't even see it. Chat with them in the
 UI at http://kagent.localhost.
 
 ### 5. LiteLLM, for comparison (`demos/05-litellm`)
@@ -117,6 +118,7 @@ Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:
 ```bash
 ./scripts/demo.sh break          # deploys the shop, then a typo in its image: ErrImagePull, shop.localhost 503
 ./scripts/demo.sh fix            # fixer: list pods -> describe -> roll back the deploy -> check; shop.localhost 200
+./scripts/demo.sh escape         # with the fixer's key: rolling back is allowed, deleting is denied by the gateway
 ```
 `fixer` can read pods and roll a deployment back (`k8s_rollout` undo), nothing else. Rolling back is what an
 on-call engineer does first, and it means the model never has to write a JSON patch.
@@ -124,7 +126,8 @@ It has its own key (`sk-fixer`, tier `pro`, so `qwen3.5:9b`) and its own line on
 applied by `demo.sh`, not Argo CD, because Argo would self-heal both the breakage and the fix.
 Expect about 30 seconds. Afterwards `fix` prints the tool calls as the gateway saw them (`user="fixer"
 tool=k8s_rollout`). The prompt tells it to stay in the `playground` namespace, but nothing enforces that yet:
-kagent's tool server runs as cluster-admin, so the gateway sees every call but doesn't limit them.
+the gateway limits *which tools* (it can't read tool arguments in v1.5), and kagent's tool server runs as
+cluster-admin. Limiting *where* is a job for Kubernetes RBAC (see Next).
 
 ## Changing things live
 
@@ -186,7 +189,7 @@ scripts/                 up, down, sync, demo, make-dashboard
 
 ## Next
 
-- per-agent tool access at the gateway (`backend.mcp.authorization`, CEL on `apiKey.user_id` and
-  `mcp.tool.name`), and RBAC so the fixer's tools can only touch `playground`
+- RBAC so the fixer's tools can only touch `playground`: its own tool server with a namespaced Role
+  (the gateway already limits which tools; `mcp.tool.arguments` in CEL is documented upstream but not in v1.5)
 - the A2A route as an A2A-aware agentgateway backend (today: plain HTTP routing)
 - a chat UI (Open WebUI) pointed at `api.localhost`

@@ -50,6 +50,23 @@ a2a() {
   echo
 }
 
+# tool KEY TOOL ARGS: one MCP tool call through the gateway, as the agent with that key would make it
+tool() {
+  local h=(-H 'Host: tools.kagent.svc.cluster.local' -H 'Content-Type: application/json'
+           -H 'Accept: application/json, text/event-stream' -H "Authorization: Bearer $1") sid body out
+  sid=$(curl -s -D - -o /dev/null http://localhost/mcp "${h[@]}" -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
+    "params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"demo","version":"1"}}}' \
+    | grep -i '^mcp-session-id' | cut -d' ' -f2 | tr -d '\r')
+  curl -s -o /dev/null http://localhost/mcp "${h[@]}" -H "mcp-session-id: $sid" \
+    -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+  body=$(jq -nc --arg t "$2" --argjson a "$3" '{jsonrpc:"2.0", id:2, method:"tools/call", params:{name:$t, arguments:$a}}')
+  echo "${DIM}\$ curl http://tools.kagent.svc.cluster.local/mcp -H 'Authorization: Bearer $1' -d '$body'${R}"
+  out=$(curl -s http://localhost/mcp "${h[@]}" -H "mcp-session-id: $sid" -d "$body" | sed -n 's/^data: //;/^{/p')
+  if echo "$out" | jq -e .error >/dev/null; then echo "${RED}denied${R}  $(echo "$out" | jq -r .error.message)"
+  else echo "${GRN}allowed${R}  $(echo "$out" | jq -r '.result.content[0].text' | head -3)"; fi
+  echo
+}
+
 case "${1:-}" in
   chat)    title "Through the gateway (llm.localhost), model alias '${3:-smart}'"
            ask llm.localhost "${2:-$Q_DEFAULT}" "${3:-smart}" ;;
@@ -123,6 +140,9 @@ case "${1:-}" in
            kubectl -n playground rollout status deploy/shop --timeout=90s >/dev/null 2>&1
            kubectl -n playground get pods
            echo; echo "http://shop.localhost -> $(curl -s -o /dev/null -w '%{http_code}' http://shop.localhost/)" ;;
+  escape)  title "The gateway decides which tools each agent may call (as the fixer, with its key)"
+           tool sk-fixer k8s_rollout '{"action":"history","resource_type":"deployment","resource_name":"shop","namespace":"playground"}'
+           tool sk-fixer k8s_delete_resource '{"resource_type":"deployment","resource_name":"shop","namespace":"playground"}' ;;
   litellm) title "Same question, same Ollama: agentgateway (llm.localhost) vs LiteLLM (litellm.localhost)"
            ask llm.localhost "${2:-$Q_DEFAULT}" smart
            ask litellm.localhost "${2:-$Q_DEFAULT}" smart ;;
@@ -157,6 +177,7 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
  ${B}6. An agent that fixes things${R}   shop.localhost
    break                         deploy the shop, then ship a typo in its image (ngnix)
    fix                           the fixer agent finds it and rolls the deployment back
+   escape                        the fixer's key may roll back, but not delete: the gateway says no
 
  ${B}5. LiteLLM, for comparison${R}      litellm.localhost
    litellm [prompt]              same question via agentgateway and via LiteLLM
