@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI on Kubernetes</title>
+<!-- reveal.js 5.1.0, stored locally so the deck works without Wi-Fi. Open this file in a browser.
+     S = speaker view (notes + next slide), F = fullscreen, Esc = overview. -->
+<link rel="stylesheet" href="reveal/reset.min.css">
+<link rel="stylesheet" href="reveal/reveal.min.css">
+<link rel="stylesheet" href="reveal/plugin/monokai.min.css">
+<style>
+  :root {
+    --bg: #0f1115; --card: #1a1d24; --line: #2a2f3a; --text: #f2f3f5; --muted: #9aa0aa;
+    --accent: #f5b83d; --ok: #2fbf71; --bad: #ef5b5b; --blue: #5aa9ff;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  html, body, .reveal-viewport { background: var(--bg); }
+  .reveal { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+            font-size: 34px; color: var(--text); }
+  .reveal .slides { text-align: left; }
+  .reveal h1, .reveal h2, .reveal h3 { color: var(--text); font-weight: 750; letter-spacing: -0.02em;
+                                        line-height: 1.1; margin: 0 0 .6em; text-transform: none; }
+  .reveal h1 { font-size: 2.3em; }
+  .reveal h2 { font-size: 1.6em; }
+  .reveal p, .reveal li { line-height: 1.4; }
+  .reveal ul { margin: 0; padding-left: 1.1em; }
+  .reveal li { margin: .35em 0; }
+  .reveal li::marker { color: var(--accent); }
+  .reveal em { color: var(--accent); font-style: normal; }
+  .reveal strong { color: var(--text); }
+  .reveal code { font-family: var(--mono); color: var(--accent); font-size: .9em; }
+  .reveal pre { width: 100%; box-shadow: none; font-size: .5em; margin: .4em 0; }
+  .reveal pre code { background: var(--card); border-radius: 14px; padding: 22px 26px; max-height: 560px; }
+  .muted { color: var(--muted); }
+  .small { font-size: .7em; }
+  .center { text-align: center; }
+
+  .kicker { display: inline-block; font-size: .5em; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .12em; color: var(--accent); margin-bottom: 1em; }
+
+  /* Section dividers */
+  .section h2 { font-size: 2.2em; }
+  .section .num { font-family: var(--mono); color: var(--accent); font-size: .8em; }
+
+  /* Demo slides: the commands to type, big */
+  .demo-badge { display: inline-block; background: var(--accent); color: #111; font-weight: 800;
+                font-size: .5em; letter-spacing: .12em; padding: .25em .7em; border-radius: 999px;
+                margin-bottom: 1em; }
+  .cmds { display: grid; gap: 12px; margin-top: .5em; }
+  .cmd { background: var(--card); border-radius: 12px; padding: 14px 22px; font-family: var(--mono);
+         font-size: .62em; display: flex; justify-content: space-between; gap: 24px; align-items: baseline; }
+  .cmd b { color: var(--accent); font-weight: 600; }
+  .cmd span { color: var(--muted); font-family: ui-sans-serif, system-ui, sans-serif; font-size: .9em;
+              text-align: right; }
+
+  /* Simple box-and-arrow diagrams */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+          margin: .8em 0; }
+  .box { background: var(--card); border: 2px solid var(--line); border-radius: 14px; padding: 16px 22px;
+         font-size: .65em; text-align: center; min-width: 150px; }
+  .box small { display: block; color: var(--muted); font-size: .8em; margin-top: 4px; }
+  .box.gw { border-color: var(--accent); }
+  .box.gw b { color: var(--accent); }
+  .arrow { color: var(--muted); font-size: .8em; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+
+  /* Cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: .6em; }
+  .card { background: var(--card); border-radius: 14px; padding: 20px 22px; font-size: .62em; }
+  .card h3 { font-size: 1.15em; margin: 0 0 .4em; }
+  .card p { margin: 0; color: var(--muted); }
+  .card .big { font-size: 2.2em; font-weight: 800; color: var(--accent); line-height: 1; margin-bottom: .2em; }
+
+  /* The request path */
+  .steps { counter-reset: s; display: grid; gap: 10px; font-size: .62em; margin-top: .4em; }
+  .step { counter-increment: s; display: grid; grid-template-columns: 44px 1fr auto; gap: 18px;
+          align-items: center; background: var(--card); border-radius: 12px; padding: 12px 20px; }
+  .step::before { content: counter(s); font-family: var(--mono); color: var(--accent); font-weight: 700; }
+  .step .no { color: var(--bad); font-family: var(--mono); font-size: .9em; }
+
+  /* Tables */
+  .reveal table { font-size: .6em; border-collapse: collapse; margin: .6em 0; width: 100%; }
+  .reveal th, .reveal td { border-bottom: 1px solid var(--line); padding: 12px 16px; text-align: left; }
+  .reveal th { color: var(--muted); font-weight: 600; }
+  .yes { color: var(--ok); font-weight: 700; }
+  .no  { color: var(--bad); font-weight: 700; }
+
+  .quote { font-size: 1.25em; font-weight: 650; line-height: 1.3; }
+  .quote em { color: var(--accent); }
+  .reveal .progress, .reveal .controls { color: var(--accent); }
+  .reveal .slide-number { background: transparent; color: var(--muted); font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="reveal"><div class="slides">
+
+<!-- ============================================================ OPENING -->
+<section>
+  <div class="kicker">agentgateway · kagent · Kubernetes</div>
+  <h1>AI on your Kubernetes platform,<br><em>without a new AI stack</em></h1>
+  <p class="muted">How LLM and agent traffic flows through Kubernetes</p>
+  <aside class="notes">
+    Before: ./scripts/up.sh has run, Grafana open in a tab, terminal with a large font.
+    Optional: ./scripts/demo.sh load in a background terminal so the dashboard has data.
+  </aside>
+</section>
+
+<section>
+  <h2>Everyone wants AI on the platform</h2>
+  <ul>
+    <li>Teams call LLMs straight from their apps</li>
+    <li>Agents start <em>doing</em> things in the cluster</li>
+    <li>Platform team: <em>who</em> is calling, what does it <em>cost</em>, is it <em>safe</em>?</li>
+  </ul>
+  <aside class="notes">
+    The usual story: every team has its own API key, nobody knows who spends what,
+    prompts leave the company unchecked. Then agents arrive and they don't just talk, they act.
+  </aside>
+</section>
+
+<section>
+  <h2>The idea: one gateway for all AI traffic</h2>
+  <div class="flow">
+    <div class="stack">
+      <div class="box">apps</div>
+      <div class="box">people</div>
+      <div class="box">agents</div>
+    </div>
+    <div class="arrow">──▶</div>
+    <div class="box gw"><b>agentgateway</b><small>keys · budgets · guards<br>routing · metrics</small></div>
+    <div class="arrow">──▶</div>
+    <div class="stack">
+      <div class="box">models<small>LLMs</small></div>
+      <div class="box">tools<small>MCP</small></div>
+      <div class="box">other agents<small>A2A</small></div>
+    </div>
+  </div>
+  <aside class="notes">
+    Same idea as an API gateway, but it understands AI traffic: tokens, prompts, models, tool calls.
+    Everything goes through one door, so that's where you set the rules and get the metrics.
+  </aside>
+</section>
+
+<section>
+  <h2>Built from things you already know</h2>
+  <div class="grid">
+    <div class="card"><h3>Gateway API</h3><p>Gateway, HTTPRoute, plus policies</p></div>
+    <div class="card"><h3>GitOps</h3><p>Argo CD syncs everything from git</p></div>
+    <div class="card"><h3>Prometheus + Grafana</h3><p>tokens per user, per model</p></div>
+    <div class="card"><h3>Kubernetes resources</h3><p>agents are just YAML too</p></div>
+  </div>
+  <aside class="notes">
+    This is the main message: no new AI platform. Everything you'll see is YAML in a git repo.
+    If you know Gateway API and GitOps, you already know most of this.
+  </aside>
+</section>
+
+<section>
+  <h2>Today's setup: one laptop</h2>
+  <div class="flow">
+    <div class="box">curl / chat UI</div>
+    <div class="arrow">──▶</div>
+    <div class="box gw"><b>agentgateway</b><small>in k3d</small></div>
+    <div class="arrow">──▶</div>
+    <div class="box">Ollama<small>on the Mac's GPU</small></div>
+  </div>
+  <div class="flow">
+    <div class="box gw"><b>agentgateway</b></div>
+    <div class="arrow">──▶</div>
+    <div class="box">Prometheus</div>
+    <div class="arrow">──▶</div>
+    <div class="box">Grafana</div>
+  </div>
+  <p class="muted small center">Local models: qwen 1.5B · 7B · 9B, Llama Guard 1B. Everything deployed by Argo CD.</p>
+  <aside class="notes">
+    Everything live, no cloud. Small local models, so answers are sometimes a bit dumb; that's fine,
+    the gateway doesn't care which model sits behind it. Show Argo CD briefly: all apps green.
+  </aside>
+</section>
+
+<!-- ============================================================ PART 1 -->
+<section class="section">
+  <div class="num">01</div>
+  <h2>LLM traffic</h2>
+  <p class="muted">The gateway in front of the models</p>
+</section>
+
+<section>
+  <h2>The client asks for a name, the gateway picks the model</h2>
+  <div class="flow">
+    <div class="box">client asks<br><code>"smart"</code></div>
+    <div class="arrow">──▶</div>
+    <div class="box gw"><b>alias</b></div>
+    <div class="arrow">──▶</div>
+    <div class="box"><code>qwen2.5:7b</code></div>
+  </div>
+  <p class="center">Swap the model behind <code>smart</code> &mdash; <em>no client changes</em>.</p>
+  <aside class="notes">
+    Clients use an OpenAI-compatible API, so any SDK works. The platform team owns the model choice.
+  </aside>
+</section>
+
+<section>
+  <div class="demo-badge">DEMO</div>
+  <h2>An AI behind a gateway</h2>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh chat</b><span>one call, tokens counted by the gateway</span></div>
+    <div class="cmd"><b>./scripts/demo.sh aliases</b><span>"fast" vs "smart"</span></div>
+    <div class="cmd"><b>./scripts/demo.sh pirate</b><span>a hidden system prompt</span></div>
+    <div class="cmd"><b>./scripts/demo.sh brief</b><span>short answers, fewer tokens</span></div>
+  </div>
+  <aside class="notes">
+    chat: point at model= and tokens in/out at the bottom.
+    aliases: same question, two different real models.
+    pirate: the caller sent one message, the model got two. Nobody changed the client.
+    brief: the gateway appends "two sentences max" and caps max_tokens. Next slide has the numbers.
+  </aside>
+</section>
+
+<section>
+  <h2>Cost control, without touching a client</h2>
+  <div class="grid">
+    <div class="card"><div class="big">786</div><h3>tokens</h3><p>"How does DNS work?" plain</p></div>
+    <div class="card"><div class="big">23</div><h3>tokens</h3><p>the same question through <code>brief</code></p></div>
+  </div>
+  <aside class="notes">
+    Measured while building this. The gateway rewrote the prompt and set max_tokens and temperature.
+  </aside>
+</section>
+
+<section>
+  <h2>The company endpoint: every request, in order</h2>
+  <div class="steps">
+    <div class="step"><div>Who are you? <span class="muted">&mdash; API key</span></div><div class="no">401</div></div>
+    <div class="step"><div>Budget left? <span class="muted">&mdash; tokens per minute, per tier</span></div><div class="no">429</div></div>
+    <div class="step"><div>Which model? <span class="muted">&mdash; by tier, whatever the client asked</span></div><div></div></div>
+    <div class="step"><div>Safe prompt? <span class="muted">&mdash; regex, then Llama Guard</span></div><div class="no">403</div></div>
+    <div class="step"><div>Safe answer? <span class="muted">&mdash; emails and phones masked</span></div><div></div></div>
+    <div class="step"><div>Who spent what? <span class="muted">&mdash; a user label on every metric</span></div><div></div></div>
+  </div>
+  <aside class="notes">
+    api.localhost. Keys: alice and bob are "pro", intern is "free".
+    A block happens before the model is called: no tokens spent.
+    All of this is two YAML files: route.yaml and backend.yaml in demos/03-company.
+  </aside>
+</section>
+
+<section>
+  <div class="demo-badge">DEMO</div>
+  <h2>The company endpoint</h2>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh nokey</b><span>401</span></div>
+    <div class="cmd"><b>./scripts/demo.sh as alice</b> <b>&nbsp;as intern</b><span>asks "gpt-5", gets a model by tier</span></div>
+    <div class="cmd"><b>./scripts/demo.sh burn intern</b><span>out of tokens: 429</span></div>
+    <div class="cmd"><b>./scripts/demo.sh card</b> <b>&nbsp;inject</b> <b>&nbsp;unsafe</b><span>403: blocked prompts</span></div>
+    <div class="cmd"><b>./scripts/demo.sh mask</b><span>emails hidden in the answer</span></div>
+  </div>
+  <aside class="notes">
+    as alice / as intern: both ask for "gpt-5", alice gets the 9B model, intern the 1.5B.
+    burn: intern has 400 tokens per minute, 429 after about two answers.
+    card: built-in regex. inject: custom regex. unsafe: Llama Guard, a small LLM guarding the big one.
+    Optional: ./scripts/demo.sh guardlog to watch Llama Guard decide.
+  </aside>
+</section>
+
+<section>
+  <h2>And you can see all of it</h2>
+  <div class="grid">
+    <div class="card"><h3>Grafana</h3><p>tokens per user and model, blocks, 429s, latency</p></div>
+    <div class="card"><h3>Access log</h3><p>one line per request: user, model, tokens, decisions</p></div>
+  </div>
+  <div class="cmds">
+    <div class="cmd"><b>http://grafana.localhost</b><span>the dashboard</span></div>
+    <div class="cmd"><b>./scripts/demo.sh logs</b><span>the gateway log</span></div>
+  </div>
+  <aside class="notes">
+    Switch to Grafana. Point at the per-user lines: alice, bob, intern. The 429s and blocks from the demos.
+    This is plain Prometheus scraping the gateway. No AI-specific tooling.
+  </aside>
+</section>
+
+<!-- ============================================================ PART 2 -->
+<section class="section">
+  <div class="num">02</div>
+  <h2>Agents</h2>
+  <p class="muted">kagent: agents as Kubernetes resources</p>
+</section>
+
+<section>
+  <h2>An agent is just a resource</h2>
+<pre><code class="language-yaml" data-trim>
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: cluster-reader
+spec:
+  description: Looks at the cluster (read-only) and reports what it finds.
+  declarative:
+    modelConfig: default-model-config      # LLM calls: via the gateway
+    systemMessage: |
+      You inspect a Kubernetes cluster with read-only tools ...
+    tools:
+      - type: McpServer
+        mcpServer:
+          name: tools-as-kagent            # tool calls: via the gateway too
+          toolNames: [k8s_get_resources, k8s_describe_resource]
+</code></pre>
+  <aside class="notes">
+    kagent turns this into a running agent: a Deployment, an A2A endpoint, a page in its UI.
+    A prompt, a model, a list of tools. Lives in git like everything else.
+  </aside>
+</section>
+
+<section>
+  <h2>Two protocols to know</h2>
+  <div class="grid">
+    <div class="card"><h3>A2A</h3><p>agent ↔ agent.<br>Each agent publishes a card: what it can do.</p></div>
+    <div class="card"><h3>MCP</h3><p>agent ↔ tools.<br>"list pods", "describe", "roll back".</p></div>
+  </div>
+  <div class="flow">
+    <div class="box">you</div><div class="arrow">─A2A▶</div>
+    <div class="box">tour-guide</div><div class="arrow">─A2A▶</div>
+    <div class="box">cluster-reader</div><div class="arrow">─MCP▶</div>
+    <div class="box">k8s tools</div>
+  </div>
+  <aside class="notes">
+    tour-guide has no tools of its own: its only "tool" is the other agent.
+    cluster-reader uses kagent's Kubernetes tools over MCP.
+  </aside>
+</section>
+
+<section>
+  <div class="demo-badge">DEMO</div>
+  <h2>Agents talking to agents</h2>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh agents</b><span>each agent's card</span></div>
+    <div class="cmd"><b>./scripts/demo.sh agent</b><span>tour-guide → cluster-reader → tools</span></div>
+  </div>
+  <p class="muted small">UI: http://kagent.localhost</p>
+  <aside class="notes">
+    agent: every step is printed, the yellow lines are tool calls. Takes 10-20 seconds.
+    Optional: show the same in the kagent UI.
+  </aside>
+</section>
+
+<section>
+  <h2>Agents are just another user</h2>
+  <div class="flow">
+    <div class="box">agent</div>
+    <div class="arrow">──▶</div>
+    <div class="box gw"><b>agentgateway</b><small>its own key · budget · guards</small></div>
+    <div class="arrow">──▶</div>
+    <div class="box">model</div>
+  </div>
+  <ul>
+    <li>Its own line on the dashboard</li>
+    <li>Agents burn tokens fast: one fix ≈ <em>12k tokens</em></li>
+  </ul>
+  <aside class="notes">
+    The agents point at the same company endpoint as alice and bob, with key sk-kagent.
+    Lesson learned: human-sized budgets don't work for agents. Two fixes in a minute hit 20k/min,
+    and kagent then waits and retries for minutes. Agents got their own, bigger budget.
+  </aside>
+</section>
+
+<!-- ============================================================ PART 3 -->
+<section class="section">
+  <div class="num">03</div>
+  <h2>Agents that do things</h2>
+  <p class="muted">An on-call agent, and who keeps an eye on it</p>
+</section>
+
+<section>
+  <div class="demo-badge">DEMO</div>
+  <h2>Break it, then let the agent fix it</h2>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh break</b><span>a typo in the image: shop down</span></div>
+    <div class="cmd"><b>./scripts/demo.sh fix</b><span>the fixer agent rolls it back</span></div>
+  </div>
+  <p class="muted small">http://shop.localhost &mdash; reloads every 3 s</p>
+  <aside class="notes">
+    Open shop.localhost first, so they see it working. break: "ngnix" instead of "nginx", page goes 503.
+    fix: about 30 seconds. List pods, describe, roll back, check. Shop is back.
+    Point at the end: "The tool calls, as the gateway saw them". That's the next slide.
+    Why roll back instead of patching: small models wrote broken JSON patches. Rolling back is
+    also what a human on call does first.
+  </aside>
+</section>
+
+<section>
+  <h2>Tool calls go through the gateway too</h2>
+  <div class="flow">
+    <div class="box">fixer</div><div class="arrow">─LLM▶</div>
+    <div class="box gw"><b>agentgateway</b></div><div class="arrow">──▶</div>
+    <div class="box">model</div>
+  </div>
+  <div class="flow">
+    <div class="box">fixer</div><div class="arrow">─MCP▶</div>
+    <div class="box gw"><b>agentgateway</b></div><div class="arrow">──▶</div>
+    <div class="box">k8s tools</div>
+  </div>
+  <ul>
+    <li>Same key: no key, no tools</li>
+    <li>Every call logged: <em>which agent, which tool</em></li>
+    <li>The gateway decides which tools each agent may call</li>
+  </ul>
+  <aside class="notes">
+    The LLM call is the agent thinking; the tool call is the agent acting.
+    If only the LLM calls go through the gateway, you see what it thinks, not what it does.
+    One file: demos/04-agents/tools.yaml.
+  </aside>
+</section>
+
+<section>
+  <h2>Who may call what</h2>
+  <table>
+    <tr><th></th><th>read tools</th><th>roll back</th><th>delete · patch · shell</th></tr>
+    <tr><td>cluster-reader</td><td class="yes">yes</td><td class="no">no</td><td class="no">no</td></tr>
+    <tr><td>fixer</td><td class="yes">yes</td><td class="yes">yes</td><td class="no">no</td></tr>
+  </table>
+  <div class="demo-badge">DEMO</div>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh escape</b><span>the fixer's key: roll back yes, delete no</span></div>
+  </div>
+  <aside class="notes">
+    escape sends tool calls with the fixer's key, the way the agent would.
+    The delete gets "Unknown tool": the gateway doesn't even show the tool to that agent.
+  </aside>
+</section>
+
+<section>
+  <h2>Layers of control</h2>
+  <div class="steps">
+    <div class="step"><div>The prompt <span class="muted">&mdash; "please stay in playground"</span></div><div class="muted">a request</div></div>
+    <div class="step"><div>The gateway <span class="muted">&mdash; which models, budgets, which tools</span></div><div class="yes">enforced</div></div>
+    <div class="step"><div>Kubernetes RBAC <span class="muted">&mdash; where it may act</span></div><div class="yes">enforced</div></div>
+  </div>
+  <p class="muted small">Today the gateway limits <em>which</em> tools. Limiting <em>where</em> is RBAC: the next step.</p>
+  <aside class="notes">
+    Be honest here: the fixer could still roll back a deployment in another namespace.
+    The tool server runs with broad rights. The fix is boring: RBAC, a Role in one namespace.
+    Same lesson as always: don't trust the prompt, enforce it in the platform.
+  </aside>
+</section>
+
+<!-- ============================================================ CLOSING -->
+<section>
+  <h2>Lessons learned</h2>
+  <ul>
+    <li>Small models need <em>examples</em> in the prompt to call tools right</li>
+    <li>Give agents <em>simple</em> actions: roll back, not "write a patch"</li>
+    <li>Agents need their <em>own budget</em></li>
+    <li>Watch what agents <em>do</em>, not only what they <em>say</em></li>
+  </ul>
+  <aside class="notes">
+    7B model: sent a tool argument as the wrong type 9 out of 10 times; one example string fixed it.
+    Patching: broken JSON. Rolling back: no JSON to write.
+    Llama Guard first blocked the agent's own replies; now it only checks what the user sent.
+  </aside>
+</section>
+
+<section>
+  <h2>The building blocks</h2>
+  <div class="grid">
+    <div class="card"><h3>agentgateway</h3><p>one door for LLM, MCP and A2A traffic</p></div>
+    <div class="card"><h3>kagent</h3><p>agents as Kubernetes resources</p></div>
+    <div class="card"><h3>Gateway API + GitOps</h3><p>config in git, deployed by Argo CD</p></div>
+    <div class="card"><h3>Prometheus + RBAC</h3><p>see everything, limit where it counts</p></div>
+  </div>
+  <aside class="notes">
+    Recap: nothing here is a separate AI platform. It's your platform, with AI traffic going through it.
+  </aside>
+</section>
+
+<section class="center">
+  <p class="quote">AI traffic is just traffic.<br><em>Put it through the gateway.</em></p>
+  <p class="muted">github.com/rorobig/agent-gateway</p>
+  <p class="muted small">Questions?</p>
+  <aside class="notes">
+    Everything is in the repo: ./scripts/up.sh and you have it on your own laptop in about 3 minutes.
+  </aside>
+</section>
+
+<!-- ============================================================ BACKUP -->
+<section>
+  <div class="kicker">Backup</div>
+  <h2>vs LiteLLM</h2>
+  <ul>
+    <li>LiteLLM: a Python proxy with its own config file</li>
+    <li>agentgateway: a Kubernetes Gateway; config is Gateway API resources</li>
+    <li>agentgateway also speaks MCP and A2A</li>
+  </ul>
+  <div class="cmds">
+    <div class="cmd"><b>./scripts/demo.sh litellm</b><span>same question, both proxies</span></div>
+  </div>
+  <aside class="notes">
+    Only if someone asks. Note the model field: agentgateway reports the real model, LiteLLM the alias.
+  </aside>
+</section>
+
+</div></div>
+
+<script src="reveal/reveal.min.js"></script>
+<script src="reveal/plugin/notes.min.js"></script>
+<script src="reveal/plugin/highlight.min.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true, slideNumber: 'c/t', transition: 'fade', transitionSpeed: 'fast',
+    width: 1280, height: 720, margin: 0.06,
+    plugins: [RevealNotes, RevealHighlight],
+  });
+</script>
+</body>
+</html>

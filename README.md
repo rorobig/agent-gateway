@@ -151,6 +151,7 @@ platform/routes/         argocd/grafana/prometheus.localhost
 platform/dashboards/     the Grafana dashboard
 demos/                   one folder per demo
 scripts/                 up, down, sync, demo, make-dashboard
+slides/                  the talk (reveal.js, works offline): open slides/index.html, S = speaker notes
 ```
 
 ## Gotchas found while building this
