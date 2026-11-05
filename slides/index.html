@@ -422,10 +422,13 @@ spec:
   <div class="demo-badge">DEMO</div>
   <div class="cmds">
     <div class="cmd"><b>./scripts/demo.sh escape</b><span>the fixer's key: roll back yes, delete no</span></div>
+    <div class="cmd"><b>./scripts/demo.sh flood</b><span>a tool call in a loop: refused after 30/min</span></div>
   </div>
   <aside class="notes">
     escape sends tool calls with the fixer's key, the way the agent would.
     The delete gets "Unknown tool": the gateway doesn't even show the tool to that agent.
+    flood: an agent stuck in a loop. Each agent has a request budget on its tools; over it, the tool never runs.
+    Show the dashboard's MCP row afterwards. Don't run fix within a minute of flood.
   </aside>
 </section>
 

@@ -50,18 +50,24 @@ a2a() {
   echo
 }
 
-# tool KEY TOOL ARGS: one MCP tool call through the gateway, as the agent with that key would make it
-tool() {
-  local h=(-H 'Host: tools.kagent.svc.cluster.local' -H 'Content-Type: application/json'
-           -H 'Accept: application/json, text/event-stream' -H "Authorization: Bearer $1") sid body out
-  sid=$(curl -s -D - -o /dev/null http://localhost/mcp "${h[@]}" -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
+# mcp_open KEY: open an MCP session through the gateway, as the agent with that key (sets MCP_H, MCP_SID)
+mcp_open() {
+  MCP_H=(-H 'Host: tools.kagent.svc.cluster.local' -H 'Content-Type: application/json'
+         -H 'Accept: application/json, text/event-stream' -H "Authorization: Bearer $1")
+  MCP_SID=$(curl -s -D - -o /dev/null http://localhost/mcp "${MCP_H[@]}" -d '{"jsonrpc":"2.0","id":1,"method":"initialize",
     "params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"demo","version":"1"}}}' \
     | grep -i '^mcp-session-id' | cut -d' ' -f2 | tr -d '\r')
-  curl -s -o /dev/null http://localhost/mcp "${h[@]}" -H "mcp-session-id: $sid" \
+  curl -s -o /dev/null http://localhost/mcp "${MCP_H[@]}" -H "mcp-session-id: $MCP_SID" \
     -d '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+}
+
+# tool KEY TOOL ARGS: one MCP tool call through the gateway, as the agent with that key would make it
+tool() {
+  local body out
+  mcp_open "$1"
   body=$(jq -nc --arg t "$2" --argjson a "$3" '{jsonrpc:"2.0", id:2, method:"tools/call", params:{name:$t, arguments:$a}}')
   echo "${DIM}\$ curl http://tools.kagent.svc.cluster.local/mcp -H 'Authorization: Bearer $1' -d '$body'${R}"
-  out=$(curl -s http://localhost/mcp "${h[@]}" -H "mcp-session-id: $sid" -d "$body" | sed -n 's/^data: //;/^{/p')
+  out=$(curl -s http://localhost/mcp "${MCP_H[@]}" -H "mcp-session-id: $MCP_SID" -d "$body" | sed -n 's/^data: //;/^{/p')
   if echo "$out" | jq -e .error >/dev/null; then echo "${RED}denied${R}  $(echo "$out" | jq -r .error.message)"
   else echo "${GRN}allowed${R}  $(echo "$out" | jq -r '.result.content[0].text' | head -3)"; fi
   echo
@@ -143,6 +149,20 @@ case "${1:-}" in
   escape)  title "The gateway decides which tools each agent may call (as the fixer, with its key)"
            tool sk-fixer k8s_rollout '{"action":"history","resource_type":"deployment","resource_name":"shop","namespace":"playground"}'
            tool sk-fixer k8s_delete_resource '{"resource_type":"deployment","resource_name":"shop","namespace":"playground"}' ;;
+  flood)   title "Tool rate limit: the fixer stuck in a loop (30 requests/minute per agent)"
+           mcp_open sk-fixer
+           body='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"k8s_get_resources","arguments":{"resource_type":"pods","namespace":"playground"}}}'
+           echo "${DIM}\$ curl http://tools.kagent.svc.cluster.local/mcp -H 'Authorization: Bearer sk-fixer' -d '$body'  (in a loop)${R}"
+           # MCP is JSON-RPC: over the limit the gateway answers with an MCP error, not an HTTP 429.
+           for i in $(seq 1 50); do
+             out=$(curl -s -D "$HDR" http://localhost/mcp "${MCP_H[@]}" -H "mcp-session-id: $MCP_SID" -d "$body" | sed -n 's/^data: //;/^{/p')
+             if echo "$out" | jq -e .error >/dev/null; then
+               printf '\n%s\n' "${RED}call $i: $(echo "$out" | jq -c .error)${R}"
+               echo "${YEL}$(grep -i '^x-ratelimit-remaining' "$HDR" | tr -d '\r')${R}  the tool never ran"; break
+             fi
+             printf '%s ' "${GRN}ok${R}"
+           done
+           echo "${DIM}The bucket refills within a minute; until then the fixer agent's own tool calls are refused too.${R}"; echo ;;
   litellm) title "Same question, same Ollama: agentgateway (llm.localhost) vs LiteLLM (litellm.localhost)"
            ask llm.localhost "${2:-$Q_DEFAULT}" smart
            ask litellm.localhost "${2:-$Q_DEFAULT}" smart ;;
@@ -178,6 +198,7 @@ ${B}agentgateway demos${R}            (prompts are optional, defaults are sensib
    break                         deploy the shop, then ship a typo in its image (ngnix)
    fix                           the fixer agent finds it and rolls the deployment back
    escape                        the fixer's key may roll back, but not delete: the gateway says no
+   flood                         the fixer calls a tool in a loop: 30 requests/min, then refused
 
  ${B}5. LiteLLM, for comparison${R}      litellm.localhost
    litellm [prompt]              same question via agentgateway and via LiteLLM

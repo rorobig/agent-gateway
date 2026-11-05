@@ -119,6 +119,7 @@ Notice the `model` in the answer: agentgateway reports the real model (`qwen2.5:
 ./scripts/demo.sh break          # deploys the shop, then a typo in its image: ErrImagePull, shop.localhost 503
 ./scripts/demo.sh fix            # fixer: list pods -> describe -> roll back the deploy -> check; shop.localhost 200
 ./scripts/demo.sh escape         # with the fixer's key: rolling back is allowed, deleting is denied by the gateway
+./scripts/demo.sh flood          # the fixer calls a tool in a loop: refused after 30 requests/minute
 ```
 `fixer` can read pods and roll a deployment back (`k8s_rollout` undo), nothing else. Rolling back is what an
 on-call engineer does first, and it means the model never has to write a JSON patch.
@@ -128,6 +129,9 @@ Expect about 30 seconds. Afterwards `fix` prints the tool calls as the gateway s
 tool=k8s_rollout`). The prompt tells it to stay in the `playground` namespace, but nothing enforces that yet:
 the gateway limits *which tools* (it can't read tool arguments in v1.5), and kagent's tool server runs as
 cluster-admin. Limiting *where* is a job for Kubernetes RBAC (see Next).
+Each agent also has a request budget on the tools route (`tools-access`: fixer 30/min, kagent 60/min), so an
+agent stuck in a loop can't hammer the cluster. Don't run `fix` within a minute of `flood`: the fixer is still over budget.
+The dashboard's "Agents' tool calls (MCP)" row shows calls per agent and tool, and what the gateway refused.
 
 ## Changing things live
 
@@ -165,6 +169,9 @@ slides/                  the talk (reveal.js, works offline): open slides/index.
 - **Llama Guard judged agents' own replies.** Sent the whole conversation, it classifies the *last* turn;
   in an agent loop that's the agent's own text ("I'll patch the deployment"), blocked as "specialized advice".
   `guard.py` now sends only the user's messages. And a blocked LLM call makes a kagent agent hang for minutes.
+- **An MCP rate limit is not an HTTP 429.** Over budget, the gateway answers `200` with a JSON-RPC error
+  (`-32003 rate limit exceeded`, `retryAfterSeconds`) plus `x-ratelimit-*` headers: check the body, not the status.
+  In metrics it's `reason="RateLimit"`. The budget counts every request, including `initialize` and `tools/list`.
 - **Small models and multi-step fixes:** asked to patch the image, qwen2.5:7b got 3 of 5 runs right and
   qwen3.5:9b still wrote broken JSON (an extra `}`) or guessed the deployment from the ReplicaSet name.
   Rolling back instead (no JSON to write) plus "pod name minus its last two parts" in the prompt fixed both.

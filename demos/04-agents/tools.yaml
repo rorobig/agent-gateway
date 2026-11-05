@@ -66,6 +66,20 @@ spec:
       mode: Strict
       secretRef:
         name: tool-keys
+    # An agent stuck in a loop can't hammer the cluster: counted in requests, a bucket per agent.
+    # kagent's own housekeeping is ~3 requests/min per agent and a whole fix ~15, so normal work never hits it.
+    rateLimit:
+      conditional:
+        - condition: 'apiKey.user_id == "fixer"'
+          policy:
+            local:
+              - requests: 30
+                unit: Minutes
+        - condition: 'apiKey.user_id == "kagent"'
+          policy:
+            local:
+              - requests: 60
+                unit: Minutes
 ---
 # Which agent may call which tool. Anything not listed is denied: the agent doesn't even see the tool.
 apiVersion: agentgateway.dev/v1alpha1

@@ -20,8 +20,8 @@ def fixed(name, color):  # color follows the entity, never its rank
     return {"matcher": {"id": "byName", "options": name},
             "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": color}}]}
 
-def stat(title, expr, x, desc):
-    panel("stat", title, x, 0, 4, 4, [(f"round(sum({expr}) or vector(0))", "")], desc,
+def stat(title, expr, x, desc, y=0, w=4):
+    panel("stat", title, x, y, w, 4, [(f"round(sum({expr}) or vector(0))", "")], desc,
           options={"colorMode": "none", "graphMode": "none", "textMode": "value", "justifyMode": "center",
                    "reduceOptions": {"calcs": ["lastNotNull"]}},
           fieldConfig={"defaults": {"decimals": 0, "unit": "locale"}, "overrides": []})
@@ -77,6 +77,39 @@ panel("timeseries", "p95 answer time, by model", 0, 23, 24, 8,
       fieldConfig={"defaults": {"custom": line, "unit": "s", "min": 0},
                    "overrides": [fixed("qwen2.5:7b", S1), fixed("qwen2.5:1.5b", S2), fixed("qwen3.5:9b", S3)]},
       options={"legend": {"displayMode": "list", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}})
+
+# Agents' tool calls (MCP): who called which tool, and what the gateway refused.
+M, TR = 'agentgateway_mcp_requests_total{method="tools/call"}', 'agentgateway_requests_total{route="kagent/tools"'
+pid += 1
+panels.append({"id": pid, "type": "row", "title": "Agents' tool calls (MCP)", "collapsed": False,
+               "gridPos": {"x": 0, "y": 31, "w": 24, "h": 1}, "panels": []})
+panel("timeseries", "Tool calls per minute, by agent and tool", 0, 32, 14, 9,
+      [(f'sum by (user, resource) (rate({M}[1m])) * 60', "{{user}} · {{resource}}")],
+      "Every MCP tools/call through the gateway. The agent comes from its API key, the tool from the MCP request.",
+      fieldConfig={"defaults": {"custom": {**line, "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1,
+                                           "stacking": {"mode": "normal"}}, "unit": "short", "decimals": 1, "min": 0},
+                   "overrides": []},
+      options={"legend": {"displayMode": "list", "placement": "right"}, "tooltip": {"mode": "multi", "sort": "desc"}})
+panel("bargauge", "Tool calls, by agent and tool", 14, 32, 10, 9,
+      [(f'round(sum by (user, resource) (increase({M}{R}))) > 0', "{{user}} · {{resource}}")],
+      "Including calls the gateway refused (a tool the agent may not use, or over its rate limit).",
+      options={"orientation": "horizontal", "displayMode": "basic", "showUnfilled": True, "valueMode": "text",
+               "reduceOptions": {"calcs": ["lastNotNull"]}, "namePlacement": "top", "text": {"titleSize": 16, "valueSize": 26}},
+      fieldConfig={"defaults": {"decimals": 0, "min": 0, "color": {"mode": "fixed", "fixedColor": S1}}, "overrides": []})
+reasons = [("Upstream", GOOD, "ok"), ("MCP", CRIT, "tool not allowed"), ("RateLimit", WARN, "rate limited"),
+           ("APIKeyAuth", SERIOUS, "no / bad key")]
+panel("timeseries", "Tool route outcomes per minute", 0, 41, 14, 8,
+      [(f'sum by (reason) (rate({TR}}}[1m])) * 60', "{{reason}}")],
+      "Every request on the tools route. The steady 'ok' is kagent refreshing each agent's tool list (about once a minute).",
+      fieldConfig={"defaults": {"custom": {**line, "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1,
+                                           "stacking": {"mode": "normal"}}, "unit": "short", "decimals": 1, "min": 0},
+                   "overrides": [{**fixed(r, col), "properties": fixed(r, col)["properties"] + [{"id": "displayName", "value": n}]}
+                                 for r, col, n in reasons]},
+      options={"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "desc"}})
+stat("Tool calls", f'increase({M}{R})', 14, "MCP tools/call requests in the selected time range.", y=41, w=5)
+stat("Tool not allowed", f'increase({TR},reason="MCP"}}{R})', 19, "The gateway's tools-per-agent rule said no: 'Unknown tool'.", y=41, w=5)
+stat("Rate limited", f'increase({TR},reason="RateLimit"}}{R})', 14, "Over the agent's request budget on the tools route (demo.sh flood).", y=45, w=5)
+stat("No / bad key (tools)", f'increase({TR},reason="APIKeyAuth"}}{R})', 19, "Tool calls without a known agent key: 401 before any tool runs.", y=45, w=5)
 
 dash = {"uid": "agentgateway-talk", "title": "agentgateway: the talk", "editable": True, "refresh": "5s",
         "time": {"from": "now-15m", "to": "now"}, "timepicker": {"refresh_intervals": ["5s", "10s", "30s"]},

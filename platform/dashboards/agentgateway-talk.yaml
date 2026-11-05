@@ -836,6 +836,450 @@ data:
          "sort": "desc"
         }
        }
+      },
+      {
+       "id": 13,
+       "type": "row",
+       "title": "Agents' tool calls (MCP)",
+       "collapsed": false,
+       "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 1
+       },
+       "panels": []
+      },
+      {
+       "id": 14,
+       "type": "timeseries",
+       "title": "Tool calls per minute, by agent and tool",
+       "description": "Every MCP tools/call through the gateway. The agent comes from its API key, the tool from the MCP request.",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 14,
+        "h": 9
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "sum by (user, resource) (rate(agentgateway_mcp_requests_total{method=\"tools/call\"}[1m])) * 60",
+         "legendFormat": "{{user}} \u00b7 {{resource}}"
+        }
+       ],
+       "fieldConfig": {
+        "defaults": {
+         "custom": {
+          "drawStyle": "bars",
+          "lineWidth": 1,
+          "fillOpacity": 80,
+          "showPoints": "never",
+          "spanNulls": true,
+          "stacking": {
+           "mode": "normal"
+          }
+         },
+         "unit": "short",
+         "decimals": 1,
+         "min": 0
+        },
+        "overrides": []
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "right"
+        },
+        "tooltip": {
+         "mode": "multi",
+         "sort": "desc"
+        }
+       }
+      },
+      {
+       "id": 15,
+       "type": "bargauge",
+       "title": "Tool calls, by agent and tool",
+       "description": "Including calls the gateway refused (a tool the agent may not use, or over its rate limit).",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 14,
+        "y": 32,
+        "w": 10,
+        "h": 9
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "round(sum by (user, resource) (increase(agentgateway_mcp_requests_total{method=\"tools/call\"}[$__range]))) > 0",
+         "legendFormat": "{{user}} \u00b7 {{resource}}",
+         "instant": true,
+         "range": false
+        }
+       ],
+       "options": {
+        "orientation": "horizontal",
+        "displayMode": "basic",
+        "showUnfilled": true,
+        "valueMode": "text",
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ]
+        },
+        "namePlacement": "top",
+        "text": {
+         "titleSize": 16,
+         "valueSize": 26
+        }
+       },
+       "fieldConfig": {
+        "defaults": {
+         "decimals": 0,
+         "min": 0,
+         "color": {
+          "mode": "fixed",
+          "fixedColor": "#3987e5"
+         }
+        },
+        "overrides": []
+       }
+      },
+      {
+       "id": 16,
+       "type": "timeseries",
+       "title": "Tool route outcomes per minute",
+       "description": "Every request on the tools route. The steady 'ok' is kagent refreshing each agent's tool list (about once a minute).",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 0,
+        "y": 41,
+        "w": 14,
+        "h": 8
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "sum by (reason) (rate(agentgateway_requests_total{route=\"kagent/tools\"}[1m])) * 60",
+         "legendFormat": "{{reason}}"
+        }
+       ],
+       "fieldConfig": {
+        "defaults": {
+         "custom": {
+          "drawStyle": "bars",
+          "lineWidth": 1,
+          "fillOpacity": 80,
+          "showPoints": "never",
+          "spanNulls": true,
+          "stacking": {
+           "mode": "normal"
+          }
+         },
+         "unit": "short",
+         "decimals": 1,
+         "min": 0
+        },
+        "overrides": [
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "Upstream"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#0ca30c"
+            }
+           },
+           {
+            "id": "displayName",
+            "value": "ok"
+           }
+          ]
+         },
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "MCP"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#d03b3b"
+            }
+           },
+           {
+            "id": "displayName",
+            "value": "tool not allowed"
+           }
+          ]
+         },
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "RateLimit"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#fab219"
+            }
+           },
+           {
+            "id": "displayName",
+            "value": "rate limited"
+           }
+          ]
+         },
+         {
+          "matcher": {
+           "id": "byName",
+           "options": "APIKeyAuth"
+          },
+          "properties": [
+           {
+            "id": "color",
+            "value": {
+             "mode": "fixed",
+             "fixedColor": "#ec835a"
+            }
+           },
+           {
+            "id": "displayName",
+            "value": "no / bad key"
+           }
+          ]
+         }
+        ]
+       },
+       "options": {
+        "legend": {
+         "displayMode": "list",
+         "placement": "bottom"
+        },
+        "tooltip": {
+         "mode": "multi",
+         "sort": "desc"
+        }
+       }
+      },
+      {
+       "id": 17,
+       "type": "stat",
+       "title": "Tool calls",
+       "description": "MCP tools/call requests in the selected time range.",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 14,
+        "y": 41,
+        "w": 5,
+        "h": 4
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "round(sum(increase(agentgateway_mcp_requests_total{method=\"tools/call\"}[$__range])) or vector(0))",
+         "legendFormat": "",
+         "instant": true,
+         "range": false
+        }
+       ],
+       "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ]
+        }
+       },
+       "fieldConfig": {
+        "defaults": {
+         "decimals": 0,
+         "unit": "locale"
+        },
+        "overrides": []
+       }
+      },
+      {
+       "id": 18,
+       "type": "stat",
+       "title": "Tool not allowed",
+       "description": "The gateway's tools-per-agent rule said no: 'Unknown tool'.",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 19,
+        "y": 41,
+        "w": 5,
+        "h": 4
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "round(sum(increase(agentgateway_requests_total{route=\"kagent/tools\",reason=\"MCP\"}[$__range])) or vector(0))",
+         "legendFormat": "",
+         "instant": true,
+         "range": false
+        }
+       ],
+       "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ]
+        }
+       },
+       "fieldConfig": {
+        "defaults": {
+         "decimals": 0,
+         "unit": "locale"
+        },
+        "overrides": []
+       }
+      },
+      {
+       "id": 19,
+       "type": "stat",
+       "title": "Rate limited",
+       "description": "Over the agent's request budget on the tools route (demo.sh flood).",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 14,
+        "y": 45,
+        "w": 5,
+        "h": 4
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "round(sum(increase(agentgateway_requests_total{route=\"kagent/tools\",reason=\"RateLimit\"}[$__range])) or vector(0))",
+         "legendFormat": "",
+         "instant": true,
+         "range": false
+        }
+       ],
+       "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ]
+        }
+       },
+       "fieldConfig": {
+        "defaults": {
+         "decimals": 0,
+         "unit": "locale"
+        },
+        "overrides": []
+       }
+      },
+      {
+       "id": 20,
+       "type": "stat",
+       "title": "No / bad key (tools)",
+       "description": "Tool calls without a known agent key: 401 before any tool runs.",
+       "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+       },
+       "gridPos": {
+        "x": 19,
+        "y": 45,
+        "w": 5,
+        "h": 4
+       },
+       "targets": [
+        {
+         "refId": "A",
+         "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+         },
+         "expr": "round(sum(increase(agentgateway_requests_total{route=\"kagent/tools\",reason=\"APIKeyAuth\"}[$__range])) or vector(0))",
+         "legendFormat": "",
+         "instant": true,
+         "range": false
+        }
+       ],
+       "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+         "calcs": [
+          "lastNotNull"
+         ]
+        }
+       },
+       "fieldConfig": {
+        "defaults": {
+         "decimals": 0,
+         "unit": "locale"
+        },
+        "overrides": []
+       }
       }
      ]
     }
