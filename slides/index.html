@@ -253,13 +253,13 @@
     <div class="cmd"><b>./scripts/demo.sh nokey</b><span>401</span></div>
     <div class="cmd"><b>./scripts/demo.sh as alice</b> <b>&nbsp;as intern</b><span>asks "gpt-5", gets a model by tier</span></div>
     <div class="cmd"><b>./scripts/demo.sh burn intern</b><span>out of tokens: 429</span></div>
-    <div class="cmd"><b>./scripts/demo.sh card</b> <b>&nbsp;inject</b> <b>&nbsp;unsafe</b><span>403: blocked prompts</span></div>
+    <div class="cmd"><b>./scripts/demo.sh bsn</b> <b>&nbsp;inject</b> <b>&nbsp;unsafe</b><span>403: blocked prompts</span></div>
     <div class="cmd"><b>./scripts/demo.sh mask</b><span>emails hidden in the answer</span></div>
   </div>
   <aside class="notes">
     as alice / as intern: both ask for "gpt-5", alice gets the 9B model, intern the 1.5B.
     burn: intern has 400 tokens per minute, 429 after about two answers.
-    card: built-in regex. inject: custom regex. unsafe: Llama Guard, a small LLM guarding the big one.
+    bsn: custom regex (credit cards are a built-in). inject: custom regex. unsafe: Llama Guard, a small LLM guarding the big one.
     Optional: ./scripts/demo.sh guardlog to watch Llama Guard decide.
   </aside>
 </section>

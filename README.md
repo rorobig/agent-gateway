@@ -64,7 +64,7 @@ API keys (`keys.yaml`): `sk-alice` and `sk-bob` (tier `pro`), `sk-intern` (tier 
 ./scripts/demo.sh as alice       # asks for "gpt-5", gets qwen3.5:9b    (pro)
 ./scripts/demo.sh as intern      # asks for "gpt-5", gets qwen2.5:1.5b  (free)
 ./scripts/demo.sh burn intern    # 400 tokens/min budget -> 429 after ~2 answers
-./scripts/demo.sh card           # 403: credit card number (built-in regex)
+./scripts/demo.sh bsn            # 403: a BSN in the prompt (custom regex; credit cards: built-in)
 ./scripts/demo.sh inject         # 403: "ignore all previous instructions" (custom regex)
 ./scripts/demo.sh unsafe         # 403: Llama Guard says "violent crimes" (webhook)
 ./scripts/demo.sh mask           # 200, but emails/phones in the ANSWER are <MASKED>

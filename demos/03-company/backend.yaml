@@ -33,12 +33,16 @@ spec:
       promptGuard:
         # Checked BEFORE the model sees the prompt, in this order. Reject = the model is never called.
         request:
+          # BSN (Dutch citizen service number): 9 digits, often written 1234.56.782. No built-in for it,
+          # so a custom regex next to the built-in credit card check.
           - regex:
               action: Reject
               builtins: [CreditCard]
+              matches:
+                - '\b\d{4}\.?\d{2}\.?\d{3}\b'
             response:
               statusCode: 403
-              message: "Blocked by agentgateway: no credit card numbers in prompts."
+              message: "Blocked by agentgateway: no BSN or credit card numbers in prompts."
           - regex:
               action: Reject
               matches:
